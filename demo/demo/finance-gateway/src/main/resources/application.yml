@@ -11,7 +11,7 @@ spring:
       username: nacos
       password: nacos
       discovery:
-        server-addr: 127.0.0.1:9838 # nacos服务地址
+        server-addr: 127.0.0.1:8848 # nacos服务地址
         #ip: 192.168.65.29
     gateway:
       discovery:

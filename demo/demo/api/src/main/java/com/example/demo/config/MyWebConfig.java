@@ -33,6 +33,7 @@ public class MyWebConfig  implements WebMvcConfigurer {
                         "/api/user/hello",                 // 测试接口
                         "/api/user/login",                 // 登录
                         "/api/user/register",              // 注册
+                        "/api/user/account/notify",        // 充值异步回调（第三方支付回调无需登录）
                         "/admin/core/user/login",          // 后台登录
                         "/doc.html",
                         "/webjars/**",

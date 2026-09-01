@@ -8,10 +8,10 @@ spring:
     nacos:
       # 全局用户名/密码：discovery 和 config 继承该值；两端不同时再各子节点覆盖
       username: nacos
-      password: shangqiuqwjk832
+      password: nacos
       discovery:
         enabled: true
-        server-addr: 127.0.0.1:9838
+        server-addr: 127.0.0.1:8848
         namespace: public
         # 如需单独覆盖鉴权，可在 discovery 下再写 username/password
       config:
@@ -19,7 +19,7 @@ spring:
         import-check:
           enabled: false
         group: DEFAULT_GROUP
-        server-addr: 127.0.0.1:9838
+        server-addr: 127.0.0.1:8848
         namespace: public
         file-extension: yaml
         # dataId = ${prefix}-${spring.profiles.active}.${file-extension}
