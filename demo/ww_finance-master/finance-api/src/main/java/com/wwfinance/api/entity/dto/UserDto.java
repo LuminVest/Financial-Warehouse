@@ -15,4 +15,7 @@ public class UserDto {
     private  String Password;
     private  String Passwordto;
 
+    /** 注册验证码（调用 /api/user/sendCode 获取后传入） */
+    private String code;
+
 }

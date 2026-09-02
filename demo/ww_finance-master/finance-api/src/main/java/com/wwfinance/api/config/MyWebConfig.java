@@ -34,6 +34,7 @@ public class MyWebConfig  implements WebMvcConfigurer {
                 // 白名单：登录/注册/测试/swagger 资源
                 .excludePathPatterns(
                         "/api/user/hello",                 // 测试接口
+                        "/api/user/sendCode",              // 发送注册验证码（无需登录）
                         "/api/user/login",                 // 登录
                         "/api/user/register",              // 注册
                         "/api/user/account/notify",        // 充值异步回调（第三方支付回调无需登录）

@@ -13,15 +13,21 @@ import com.wwfinance.common.result.PccAjaxResult;
 import com.wwfinance.common.utils.MD5;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 @Api(tags = "用户注册")
 @RestController
 @RequestMapping("/api/user")
+@Slf4j
 public class UserController {
 
     @Autowired
@@ -29,6 +35,15 @@ public class UserController {
 
     @Autowired
     private UserAccountService userAccountService;
+
+    @Autowired
+    private RedisTemplate redisTemplate;
+
+    /** 注册验证码 Redis key 前缀（与短信服务约定保持一致） */
+    private static final String SMS_CODE_PREFIX = "xx:code:";
+
+    /** 验证码有效期：5 分钟 */
+    private static final long SMS_CODE_EXPIRE_MINUTES = 5;
 
     @GetMapping("/hello")
     public String index(){
@@ -56,10 +71,37 @@ public class UserController {
 //    }
 
 
+    @ApiOperation("发送注册验证码")
+    @PostMapping("/sendCode")
+    public PccAjaxResult sendCode(
+            @ApiParam(value = "手机号", required = true)
+            @RequestParam String mobile){
+        // 1. 手机号非空 + 11 位手机号格式校验
+        if (mobile == null || !mobile.matches("^1\\d{10}$")) {
+            return new PccAjaxResult(500, "手机号格式不正确");
+        }
+        // 2. 已注册的手机号不允许再发送注册验证码
+        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(User::getMobile, mobile);
+        if (userService.getOne(queryWrapper) != null) {
+            return new PccAjaxResult(500, "手机号已被注册");
+        }
+        // 3. 生成 4 位随机验证码并存入 Redis，有效期 5 分钟
+        String code = String.valueOf(new Random().nextInt(9000) + 1000);
+        redisTemplate.opsForValue().set(SMS_CODE_PREFIX + mobile, code, SMS_CODE_EXPIRE_MINUTES, TimeUnit.MINUTES);
+        log.info("注册验证码已生成，mobile={}, code={}", mobile, code);
+        // demo 阶段：直接返回验证码方便前后端联调；生产环境应通过短信网关下发，禁止返回
+        return new PccAjaxResult(200, "验证码发送成功", code);
+    }
 
     @ApiOperation("用户注册")
     @PostMapping("/register")
     public PccAjaxResult register(@RequestBody UserDto userDTO){
+        // 0. 校验验证码：注册前必须通过 /api/user/sendCode 获取验证码
+        Object cacheCode = redisTemplate.opsForValue().get(SMS_CODE_PREFIX + userDTO.getMobile());
+        if (userDTO.getCode() == null || cacheCode == null || !userDTO.getCode().equals(cacheCode.toString())) {
+            return new PccAjaxResult(500, "验证码错误或已过期，请重新获取");
+        }
 //判断手机是否存在
         LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(User::getMobile, userDTO.getMobile());
@@ -84,6 +126,9 @@ public class UserController {
         UserAccount userAccount = new UserAccount();
         userAccount.setUserId(user.getId());
         userAccountService.save(userAccount);
+
+        // 注册成功，删除已使用的验证码，防止被重复使用
+        redisTemplate.delete(SMS_CODE_PREFIX + userDTO.getMobile());
 
         return new PccAjaxResult(200, "注册成功");
     }
