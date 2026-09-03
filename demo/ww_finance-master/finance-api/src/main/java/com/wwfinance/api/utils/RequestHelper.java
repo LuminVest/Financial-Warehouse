@@ -72,6 +72,7 @@ public class RequestHelper {
         }
         // 末尾拼接签名密钥
         sb.append(HfbConst.SIGN_KEY);
-        return MD5.encrypt(sb.toString());
+        // 固定 UTF-8 编码做 MD5，与银行新 jar（ww_bank-1.0.0）一致，保证中文参数签名匹配
+        return MD5.md5Encrypt(sb.toString());
     }
 }
