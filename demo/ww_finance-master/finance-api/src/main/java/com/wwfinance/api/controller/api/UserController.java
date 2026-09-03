@@ -107,7 +107,7 @@ public class UserController {
         queryWrapper.eq(User::getMobile, userDTO.getMobile());
         User user2 = userService.getOne(queryWrapper);
         if(user2 != null){
-            return new PccAjaxResult(500, "手机号已经存在11");
+            return new PccAjaxResult(500, "手机号已被注册");
         }
 
         //判断两次密码是否一致

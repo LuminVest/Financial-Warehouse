@@ -2,11 +2,10 @@ package com.wwfinance.api.utils;
 
 import com.wwfinance.common.utils.MD5;
 
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * 请求参数处理工具（对齐老师 finance-api 的 RequestHelper）
@@ -44,39 +43,35 @@ public class RequestHelper {
     }
 
     /**
-     * 获取当前时间戳（毫秒字符串）
+     * 获取当前时间戳（毫秒）
      */
-    public static String getTimestamp() {
-        return String.valueOf(System.currentTimeMillis());
+    public static long getTimestamp() {
+        return new Date().getTime();
     }
 
     /**
-     * 生成签名（旺旺银行托管平台签名规则）：
+     * 生成签名（旺旺银行托管平台签名规则，对齐老师源码）：
      * 1. 参与签名的参数排除 sign 字段本身
-     * 2. 参数按 key 字典序升序排列
-     * 3. 按 value1|value2|... 用 | 拼接（只用 value，不用 key）
-     * 4. 末尾拼接一个 |，再拼接签名密钥 9876543210
+     * 2. 用 TreeMap 按 key 字典序升序排列
+     * 3. 按 value1|value2|... 用 | 拼接（只用 value，不用 key；不跳过 null，null 拼成 "null"）
+     * 4. 末尾拼接签名密钥 HfbConst.SIGN_KEY
      * 5. 整串做 MD5（32 位小写）
      */
     public static String getSign(Map<String, Object> paramMap) {
-        String signKey = "9876543210";
         Map<String, Object> params = new HashMap<>();
         if (paramMap != null) {
             params.putAll(paramMap);
         }
         // 排除 sign 字段本身
         params.remove("sign");
-        // key 字典序升序
-        List<String> keys = new ArrayList<>(params.keySet());
-        Collections.sort(keys);
+        // TreeMap 按 key 字典序排序
+        TreeMap<String, Object> sorted = new TreeMap<>(params);
         StringBuilder sb = new StringBuilder();
-        for (String key : keys) {
-            Object val = params.get(key);
-            if (val != null) {
-                sb.append(val).append("|");
-            }
+        for (Map.Entry<String, Object> param : sorted.entrySet()) {
+            sb.append(param.getValue()).append("|");
         }
-        sb.append(signKey);
+        // 末尾拼接签名密钥
+        sb.append(HfbConst.SIGN_KEY);
         return MD5.encrypt(sb.toString());
     }
 }

@@ -1,7 +1,6 @@
 package com.wwfinance.api.controller.api;
 
 import com.alibaba.fastjson.JSON;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.wwfinance.api.entity.User;
 import com.wwfinance.api.service.UserAccountService;
 import com.wwfinance.api.service.UserService;
@@ -40,7 +39,7 @@ public class UserAccountController {
     @ApiOperation("充值")
     @RequestMapping(value = "/auth/commitCharge", method = {RequestMethod.GET, RequestMethod.POST})
     public PccAjaxResult commitCharge(
-            @RequestParam BigDecimal chargeAmt,
+            @RequestParam String chargeAmt,
             @RequestHeader("Authorization") String authorizationHeader) {
         // 获取 Authorization 头部
         String token = authorizationHeader;
@@ -50,7 +49,7 @@ public class UserAccountController {
         log.info(phone.toString());
         String mobile = (String) phone.get("token_phone");
         // 反查当前登录用户（兼容 demo 的 token_userid）
-        User user = getUserByPhoneOrId(mobile, phone);
+        User user = tu.getUserByPhoneOrId(mobile, phone, userService);
         // 调服务层生成充值托管平台表单
         String formStr = userAccountService.commitCharge(chargeAmt, user.getId());
         return new PccAjaxResult(200, "账户提交充值数据成功", formStr);
@@ -96,30 +95,9 @@ public class UserAccountController {
         log.info(phone.toString());
         String mobile = (String) phone.get("token_phone");
         // 反查当前登录用户
-        User user = getUserByPhoneOrId(mobile, phone);
+        User user = tu.getUserByPhoneOrId(mobile, phone, userService);
         // 查账户余额
         BigDecimal account = userAccountService.getAccount(user.getId());
         return new PccAjaxResult(200, "查询账户余额", account);
-    }
-
-    /**
-     * 兼容两种 token：
-     *  - 老师版：claims 存 token_phone(手机号)，按手机号反查
-     *  - demo 版：claims 存 token_userid(用户ID)，直接按 ID 查
-     */
-    private User getUserByPhoneOrId(String mobile, Map phone) {
-        if (mobile != null && !mobile.isEmpty()) {
-            LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
-            queryWrapper.eq(User::getMobile, mobile);
-            User user = userService.getOne(queryWrapper);
-            if (user != null) {
-                return user;
-            }
-        }
-        Object uid = phone.get("token_userid");
-        if (uid == null) {
-            throw new RuntimeException("token 中未找到用户信息");
-        }
-        return userService.getById(Long.valueOf(String.valueOf(uid)));
     }
 }

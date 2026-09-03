@@ -1,6 +1,9 @@
 package com.wwfinance.api.utils;
 
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.wwfinance.api.entity.User;
+import com.wwfinance.api.service.UserService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -80,6 +83,27 @@ public class TokenUtil {
         Map<String, String> tokenInfoMap = new HashMap<>();
         tokenInfoMap.put("token_userid", claims.get("token_userid").toString());
         return tokenInfoMap;
+    }
+
+    /**
+     * 根据 token 中的手机号或用户ID反查用户（兼容两种 token claims）
+     *  - 老师版：claims 存 token_phone(手机号)，按手机号反查
+     *  - demo 版：claims 存 token_userid(用户ID)，直接按 ID 查
+     */
+    public static User getUserByPhoneOrId(String mobile, Map phone, UserService userService) {
+        if (mobile != null && !mobile.isEmpty()) {
+            LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(User::getMobile, mobile);
+            User user = userService.getOne(queryWrapper);
+            if (user != null) {
+                return user;
+            }
+        }
+        Object uid = phone.get("token_userid");
+        if (uid == null) {
+            throw new RuntimeException("token 中未找到用户信息");
+        }
+        return userService.getById(Long.valueOf(String.valueOf(uid)));
     }
 
     public static void main(String[] args) {

@@ -1,7 +1,6 @@
 package com.wwfinance.api.controller.api;
 
 import com.alibaba.fastjson.JSON;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.wwfinance.api.entity.User;
 import com.wwfinance.api.entity.UserBind;
 import com.wwfinance.api.entity.dto.UserBindDTO;
@@ -59,7 +58,7 @@ public class UserBindController {
         log.info(phone.toString());
         String mobile = (String) phone.get("token_phone");
         // 反查当前登录用户（兼容 demo 的 token_userid）
-        User user = getUserByPhoneOrId(mobile, phone);
+        User user = tu.getUserByPhoneOrId(mobile, phone, userService);
         Long userId = user.getId();
         // 获取绑定信息
         UserBind bindInfoByUserId = userBindMapper.getBindInfoByUserId(userId);
@@ -81,7 +80,7 @@ public class UserBindController {
         log.info(phone.toString());
         String mobile = (String) phone.get("token_phone");
         // 反查当前登录用户（兼容 demo 的 token_userid）
-        User user = getUserByPhoneOrId(mobile, phone);
+        User user = tu.getUserByPhoneOrId(mobile, phone, userService);
         Long userId = user.getId();
         // 调服务层：保存绑定申请 + 构建托管平台表单
         String formStr = userBindService.commitBindUser(userBindDTO, userId);
@@ -109,26 +108,5 @@ public class UserBindController {
         // 修改绑定状态
         userBindService.notify(paramMap);
         return "success";
-    }
-
-    /**
-     * 兼容两种 token：
-     *  - 老师版：claims 存 token_phone(手机号)，按手机号反查
-     *  - demo 版：claims 存 token_userid(用户ID)，直接按 ID 查
-     */
-    private User getUserByPhoneOrId(String mobile, Map phone) {
-        if (mobile != null && !mobile.isEmpty()) {
-            LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
-            queryWrapper.eq(User::getMobile, mobile);
-            User user = userService.getOne(queryWrapper);
-            if (user != null) {
-                return user;
-            }
-        }
-        Object uid = phone.get("token_userid");
-        if (uid == null) {
-            throw new RuntimeException("token 中未找到用户信息");
-        }
-        return userService.getById(Long.valueOf(String.valueOf(uid)));
     }
 }

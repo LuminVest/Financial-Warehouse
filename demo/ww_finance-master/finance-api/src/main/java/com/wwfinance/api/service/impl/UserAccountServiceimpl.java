@@ -41,7 +41,7 @@ public class UserAccountServiceimpl extends ServiceImpl<UserAccountMapper, UserA
      * 3. 组装签名参数，构建自动提交表单 POST 到银行端 AgreeBankCharge（渲染充值确认页）
      */
     @Override
-    public String commitCharge(BigDecimal chargeAmt, Long userId) {
+    public String commitCharge(String chargeAmt, Long userId) {
         // 查绑定信息（托管账户号）
         UserBind userBind = userBindMapper.getBindInfoByUserId(userId);
         if (userBind == null || StringUtils.isEmpty(userBind.getBindCode())) {
@@ -52,14 +52,14 @@ public class UserAccountServiceimpl extends ServiceImpl<UserAccountMapper, UserA
         // 组装参数
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("bindCode", userBind.getBindCode());
-        paramMap.put("chargeAmt", chargeAmt.toString());
+        paramMap.put("chargeAmt", chargeAmt);
         paramMap.put("agentBillNo", agentBillNo);
-        paramMap.put("returnUrl", HfbConst.USERCHARGE_RETURN_URL);
-        paramMap.put("notifyUrl", HfbConst.USERCHARGE_NOTIFY_URL);
+        paramMap.put("returnUrl", HfbConst.RECHARGE_RETURN_URL);
+        paramMap.put("notifyUrl", HfbConst.RECHARGE_NOTIFY_URL);
         paramMap.put("timestamp", RequestHelper.getTimestamp());
         paramMap.put("sign", RequestHelper.getSign(paramMap));
         log.info("构建充值托管表单, userId={}, agentBillNo={}, chargeAmt={}", userId, agentBillNo, chargeAmt);
-        return FormHelper.buildForm(HfbConst.USERCHARGE_URL, paramMap);
+        return FormHelper.buildForm(HfbConst.RECHARGE_URL, paramMap);
     }
 
     /**

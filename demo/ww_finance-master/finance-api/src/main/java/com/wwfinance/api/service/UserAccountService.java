@@ -13,7 +13,7 @@ public interface UserAccountService extends IService<UserAccount> {
     /**
      * 充值（生成支付表单/订单号）
      */
-    String commitCharge(BigDecimal chargeAmt, Long userId);
+    String commitCharge(String chargeAmt, Long userId);
 
     /**
      * 查询账户余额
