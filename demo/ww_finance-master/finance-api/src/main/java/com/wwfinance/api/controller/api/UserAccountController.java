@@ -35,12 +35,12 @@ public class UserAccountController {
     private static TokenUtil tu = new TokenUtil();
 
     /**
-     * 充值（生成支付表单/订单号）
+     * 充值（生成托管平台表单）
      */
     @ApiOperation("充值")
-    @GetMapping("/auth/commitCharge/{chargeAmt}")
+    @RequestMapping(value = "/auth/commitCharge", method = {RequestMethod.GET, RequestMethod.POST})
     public PccAjaxResult commitCharge(
-            @PathVariable BigDecimal chargeAmt,
+            @RequestParam BigDecimal chargeAmt,
             @RequestHeader("Authorization") String authorizationHeader) {
         // 获取 Authorization 头部
         String token = authorizationHeader;
@@ -51,18 +51,19 @@ public class UserAccountController {
         String mobile = (String) phone.get("token_phone");
         // 反查当前登录用户（兼容 demo 的 token_userid）
         User user = getUserByPhoneOrId(mobile, phone);
-        // 调服务层生成充值订单
+        // 调服务层生成充值托管平台表单
         String formStr = userAccountService.commitCharge(chargeAmt, user.getId());
-        return new PccAjaxResult(200, "充值成功", formStr);
+        return new PccAjaxResult(200, "账户提交充值数据成功", formStr);
     }
 
     /**
      * 充值异步回调
      * 注意：第三方支付回调一般不应要求登录 token，
      * 接入真实支付后，需要把本路径加入 JwtAuthInterceptor 白名单。
+     * 必须返回纯文本 success（小写，不带引号），托管平台收到后停止重试。
      */
     @ApiOperation("充值异步回调")
-    @PostMapping("/notify")
+    @PostMapping(value = "/notify", produces = "text/plain")
     public String notify(HttpServletRequest request) {
         // 请求参数封装到 map 集合中
         Map<String, Object> paramMap = RequestHelper.switchMap(request.getParameterMap());

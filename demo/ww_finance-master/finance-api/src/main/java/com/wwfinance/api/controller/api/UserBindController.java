@@ -92,9 +92,11 @@ public class UserBindController {
      * 账户绑定异步回调
      * 注意：第三方托管平台回调不应要求登录 token，
      * 该路径已在 MyWebConfig 白名单中放行。
+     * 必须返回纯文本 success（小写，不带引号），托管平台收到后停止重试；
+     * 若返回 JSON 字符串 "success"（带引号），平台会认为失败并重试 5 次。
      */
     @ApiOperation("账户绑定异步回调")
-    @PostMapping("/notify")
+    @PostMapping(value = "/notify", produces = "text/plain")
     public String notify(HttpServletRequest request) {
         // 请求参数封装到 map 集合中
         Map<String, Object> paramMap = RequestHelper.switchMap(request.getParameterMap());

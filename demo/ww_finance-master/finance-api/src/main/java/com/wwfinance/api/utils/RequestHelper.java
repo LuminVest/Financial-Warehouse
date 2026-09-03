@@ -31,10 +31,16 @@ public class RequestHelper {
     }
 
     /**
-     * 验签（demo 简化：直接返回 true；接入托管平台后按平台签名规则实现真实验签）
+     * 验签（旺旺银行托管平台真实验签）：
+     * 用 getSign 对接收参数重新计算签名，与请求携带的 sign 对比。
      */
     public static boolean isSignEquals(Map<String, Object> paramMap) {
-        return true;
+        if (paramMap == null || paramMap.get("sign") == null) {
+            return false;
+        }
+        String sign = String.valueOf(paramMap.get("sign"));
+        String calcSign = getSign(paramMap);
+        return sign.equals(calcSign);
     }
 
     /**

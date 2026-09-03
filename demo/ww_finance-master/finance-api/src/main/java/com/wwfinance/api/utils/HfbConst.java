@@ -11,12 +11,21 @@ public class HfbConst {
     /** 代理商 id */
     public static final String AGENT_ID = "1001";
 
-    /** 用户绑定地址（托管平台，占位） */
-    public static final String USERBIND_URL = "http://localhost:8090/api/bind";
+    /** 用户绑定地址（旺旺银行托管平台：验签渲染绑定页） */
+    public static final String USERBIND_URL = "http://localhost:9090/userBind/BindAgreeUserV2";
 
     /** 用户绑定同步回调地址（占位） */
     public static final String USERBIND_RETURN_URL = "http://localhost:5173/#/bind/return";
 
     /** 用户绑定异步回调地址（本项目 notify 接口） */
     public static final String USERBIND_NOTIFY_URL = "http://localhost:8990/api/user/bind/notify";
+
+    /** 充值地址（旺旺银行托管平台：验签渲染充值确认页） */
+    public static final String USERCHARGE_URL = "http://localhost:9090/userAccount/AgreeBankCharge";
+
+    /** 充值同步回调地址（占位） */
+    public static final String USERCHARGE_RETURN_URL = "http://localhost:5173/#/charge/return";
+
+    /** 充值异步回调地址（本项目 notify 接口） */
+    public static final String USERCHARGE_NOTIFY_URL = "http://localhost:8990/api/user/account/notify";
 }
