@@ -37,7 +37,7 @@ public class UserAccountController {
      * 充值（生成托管平台表单）
      */
     @ApiOperation("充值")
-    @RequestMapping(value = "/auth/commitCharge", method = {RequestMethod.GET, RequestMethod.POST})
+    @PostMapping("/auth/commitCharge")
     public PccAjaxResult commitCharge(
             @RequestParam String chargeAmt,
             @RequestHeader("Authorization") String authorizationHeader) {
