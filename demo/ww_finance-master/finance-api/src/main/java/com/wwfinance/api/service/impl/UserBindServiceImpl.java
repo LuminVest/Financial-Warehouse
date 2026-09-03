@@ -108,6 +108,11 @@ public class UserBindServiceImpl extends ServiceImpl<UserBindMapper, UserBind> i
         if (user != null) {
             user.setBindCode(bindCode);
             user.setBindStatus(UserBindEnum.BIND_OK.getStatus());
+            // 同步实名信息（姓名/身份证）到 user 表，便于 getInfo 直接返回
+            if (userBind != null) {
+                user.setName(userBind.getName());
+                user.setIdCard(userBind.getIdCard());
+            }
             userService.updateById(user);
         }
     }
