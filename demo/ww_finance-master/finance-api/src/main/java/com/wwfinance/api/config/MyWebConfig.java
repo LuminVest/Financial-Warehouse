@@ -33,13 +33,14 @@ public class MyWebConfig  implements WebMvcConfigurer {
                 .addPathPatterns("/api/**", "/admin/**")
                 // 白名单：登录/注册/测试/swagger 资源
                 .excludePathPatterns(
-                        "/api/user/hello",                 // 测试接口
-                        "/api/user/sendCode",              // 发送注册验证码（无需登录）
-                        "/api/user/login",                 // 登录
-                        "/api/user/register",              // 注册
-                        "/api/user/account/notify",        // 充值异步回调（第三方支付回调无需登录）
-                        "/api/user/bind/notify",           // 用户绑定异步回调（第三方托管平台回调无需登录）
-                        "/admin/core/user/login",          // 后台登录
+                        "/api/core/user/hello",                 // 测试接口
+                        "/api/core/user/sendCode",              // 发送注册验证码（无需登录）
+                        "/api/core/user/checkMobile/**",        // 校验手机号（sms 服务 Feign 调用，无需登录）
+                        "/api/core/user/login",                 // 登录
+                        "/api/core/user/register",              // 注册
+                        "/api/core/userAccount/notify",         // 充值异步回调（第三方支付回调无需登录）
+                        "/api/core/userBind/notify",            // 用户绑定异步回调（第三方托管平台回调无需登录）
+                        "/admin/core/user/login",               // 后台登录
                         "/doc.html",
                         "/webjars/**",
                         "/swagger-resources/**",

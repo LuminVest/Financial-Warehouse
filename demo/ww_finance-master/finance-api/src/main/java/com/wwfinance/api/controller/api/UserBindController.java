@@ -29,7 +29,7 @@ import java.util.Map;
  */
 @Api(tags = "用户绑定")
 @RestController
-@RequestMapping("/api/user/bind")
+@RequestMapping("/api/core/userBind")
 @Slf4j
 public class UserBindController {
 

@@ -22,7 +22,7 @@ import java.util.Map;
 @Slf4j
 @Api(tags = "用户账户")
 @RestController
-@RequestMapping("/api/user/account")
+@RequestMapping("/api/core/userAccount")
 public class UserAccountController {
 
     @Resource
@@ -35,11 +35,12 @@ public class UserAccountController {
 
     /**
      * 充值（生成托管平台表单）
+     * 对齐接口文档：GET /auth/commitCharge/{chargeAmt}，金额走路径变量
      */
     @ApiOperation("充值")
-    @PostMapping("/auth/commitCharge")
+    @GetMapping("/auth/commitCharge/{chargeAmt}")
     public PccAjaxResult commitCharge(
-            @RequestParam String chargeAmt,
+            @PathVariable BigDecimal chargeAmt,
             @RequestHeader("Authorization") String authorizationHeader) {
         // 获取 Authorization 头部
         String token = authorizationHeader;
@@ -51,7 +52,7 @@ public class UserAccountController {
         // 反查当前登录用户（兼容 demo 的 token_userid）
         User user = tu.getUserByPhoneOrId(mobile, phone, userService);
         // 调服务层生成充值托管平台表单
-        String formStr = userAccountService.commitCharge(chargeAmt, user.getId());
+        String formStr = userAccountService.commitCharge(String.valueOf(chargeAmt), user.getId());
         return new PccAjaxResult(200, "账户提交充值数据成功", formStr);
     }
 

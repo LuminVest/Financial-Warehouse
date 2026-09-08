@@ -20,7 +20,7 @@ public class HfbConst {
     // 用户绑定旺旺银行平台 url 地址
     public static final String USERBIND_URL = "http://localhost:9090/userBind/BindAgreeUserV2";
     // 用户绑定异步回调
-    public static final String USERBIND_NOTIFY_URL = "http://localhost:8990/api/user/bind/notify";
+    public static final String USERBIND_NOTIFY_URL = "http://localhost:8990/api/core/userBind/notify";
     // 用户绑定同步回调
     public static final String USERBIND_RETURN_URL = "http://localhost:5173/#/bind/return";
 
@@ -30,7 +30,7 @@ public class HfbConst {
     // 充值旺旺银行平台 url 地址
     public static final String RECHARGE_URL = "http://localhost:9090/userAccount/AgreeBankCharge";
     // 充值异步回调
-    public static final String RECHARGE_NOTIFY_URL = "http://localhost:8990/api/user/account/notify";
+    public static final String RECHARGE_NOTIFY_URL = "http://localhost:8990/api/core/userAccount/notify";
     // 充值同步回调
     public static final String RECHARGE_RETURN_URL = "http://localhost:5173/#/charge/return";
 
@@ -40,7 +40,7 @@ public class HfbConst {
     // 投标旺旺银行平台 url 地址
     public static final String INVEST_URL = "http://localhost:9090/userInvest/AgreeUserVoteProject";
     // 投标异步回调
-    public static final String INVEST_NOTIFY_URL = "http://localhost:8990/api/user/lendItem/notify";
+    public static final String INVEST_NOTIFY_URL = "http://localhost:8990/api/core/lendItem/notify";
     // 投标同步回调
     public static final String INVEST_RETURN_URL = "http://localhost:5173/#/invest/return";
 

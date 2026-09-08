@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 @Api(tags = "用户注册")
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/api/core/user")
 @Slf4j
 public class UserController {
 
@@ -60,8 +60,20 @@ public class UserController {
     }
 
     /**
+     * 校验手机号是否可用（被 sms 服务通过 Feign 调用，注册前检查是否已注册）
+     * 注意：公开接口，无需登录；返回 boolean 供 CoreUserInfoClient.checkMobile 反序列化
+     */
+    @ApiOperation("校验手机号是否可用")
+    @GetMapping("/checkMobile/{mobile}")
+    public boolean checkMobile(@ApiParam(value = "手机号", required = true) @PathVariable String mobile) {
+        LambdaQueryWrapper<User> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(User::getMobile, mobile);
+        return userService.getOne(queryWrapper) == null;
+    }
+
+    /**
      * 调用 UserMapper.xml 中的 selectByCondition 按条件查询
-     * 示例：GET /api/user/condition?name=张&mobile=13800000000
+     * 示例：GET /api/core/user/condition?name=张&mobile=13800000000
      */
 //    @GetMapping("/condition")
 //    public List<User> selectByCondition(
@@ -97,7 +109,7 @@ public class UserController {
     @ApiOperation("用户注册")
     @PostMapping("/register")
     public PccAjaxResult register(@RequestBody UserDto userDTO){
-        // 0. 校验验证码：注册前必须通过 /api/user/sendCode 获取验证码
+        // 0. 校验验证码：注册前必须通过 /api/core/user/sendCode 获取验证码
         Object cacheCode = redisTemplate.opsForValue().get(SMS_CODE_PREFIX + userDTO.getMobile());
         if (userDTO.getCode() == null || cacheCode == null || !userDTO.getCode().equals(cacheCode.toString())) {
             return new PccAjaxResult(500, "验证码错误或已过期，请重新获取");
@@ -161,14 +173,14 @@ public class UserController {
     }
 
     @ApiOperation("退出登录")
-    @PostMapping("/logout")
+    @GetMapping("/logout")
     public PccAjaxResult logout(){
         // JWT 无状态：前端清除本地 token 即可；如需服务端强制失效，可引入 Redis 黑名单
         return new PccAjaxResult(200, "退出成功");
     }
 
     @ApiOperation("获取当前登录用户个人信息")
-    @GetMapping("/info")
+    @GetMapping("/userInfo")
     public PccAjaxResult getInfo(){
         Integer userId = LoginUserContext.getUserid();
         if(userId == null){
