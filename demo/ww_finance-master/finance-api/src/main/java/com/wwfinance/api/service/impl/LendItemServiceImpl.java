@@ -111,6 +111,8 @@ public class LendItemServiceImpl extends ServiceImpl<LendItemMapper, LendItem> i
         paramMap.put("voteBindCode", userBind.getBindCode());
         paramMap.put("agentBillNo", LendNoUtils.getLendItemNo());
         paramMap.put("agentProjectCode", lend.getLendNo());
+        paramMap.put("agentProjectName", lend.getTitle());   // 银行确认页模板必填（EL1008E）
+        paramMap.put("projectAmt", lend.getAmount());        // 银行 invest 超投校验必填（UserInvest.projectAmt）
         paramMap.put("projectType", "1");
         paramMap.put("voteAmt", investAmount);
         paramMap.put("votePrizeAmt", "0");
