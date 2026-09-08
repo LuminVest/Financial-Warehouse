@@ -40,6 +40,7 @@ public class MyWebConfig  implements WebMvcConfigurer {
                         "/api/core/user/register",              // 注册
                         "/api/core/userAccount/notify",         // 充值异步回调（第三方支付回调无需登录）
                         "/api/core/userBind/notify",            // 用户绑定异步回调（第三方托管平台回调无需登录）
+                        "/api/core/lendItem/notify",            // 投资异步回调（第三方托管平台回调无需登录）
                         "/admin/core/user/login",               // 后台登录
                         "/doc.html",
                         "/webjars/**",
