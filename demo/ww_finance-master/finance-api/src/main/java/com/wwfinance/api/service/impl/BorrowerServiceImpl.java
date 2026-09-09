@@ -7,6 +7,7 @@ import com.wwfinance.api.entity.BorrowerAttach;
 import com.wwfinance.api.entity.User;
 import com.wwfinance.api.entity.dto.BorrowerDTO;
 import com.wwfinance.api.enums.BorrowerStatusEnum;
+import com.wwfinance.common.exception.BusinessException;
 import com.wwfinance.api.mapper.BorrowerAttachMapper;
 import com.wwfinance.api.mapper.BorrowerMapper;
 import com.wwfinance.api.mapper.UserMapper;
@@ -37,7 +38,11 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void saveBorrowerVOByUserId(BorrowerDTO borrowerDTO, User user) {
+    public void saveBorrowerVOByUserId(BorrowerDTO borrowerDTO, Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException("用户不存在");
+        }
         // 1. 添加 borrower：姓名/身份证/手机号取 user 表，其余认证信息来自 DTO
         Borrower borrower = new Borrower();
         BeanUtils.copyProperties(borrowerDTO, borrower);
@@ -67,5 +72,13 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
         // 3. 更新 user 表：借款人认证状态置为「认证中」
         user.setBorrowAuthStatus(BorrowerStatusEnum.AUTH_RUNNING.getStatus());
         userMapper.updateById(user);
+    }
+
+    @Override
+    public Integer getStatusByUserId(Long userId) {
+        LambdaQueryWrapper<Borrower> borrowerQueryWrapper = new LambdaQueryWrapper<>();
+        borrowerQueryWrapper.select(Borrower::getStatus).eq(Borrower::getUserId, userId);
+        Borrower borrower = this.getOne(borrowerQueryWrapper);
+        return borrower == null ? null : borrower.getStatus();
     }
 }

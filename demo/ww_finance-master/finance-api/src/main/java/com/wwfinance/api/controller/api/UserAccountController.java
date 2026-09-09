@@ -1,23 +1,19 @@
 package com.wwfinance.api.controller.api;
 
 import com.alibaba.fastjson.JSON;
-import com.wwfinance.api.entity.User;
 import com.wwfinance.api.service.UserAccountService;
-import com.wwfinance.api.service.UserService;
+import com.wwfinance.api.utils.LoginUserContext;
 import com.wwfinance.api.utils.RequestHelper;
-import com.wwfinance.api.utils.TokenUtil;
 import com.wwfinance.common.result.PccAjaxResult;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
 import java.util.Map;
-
 
 @Slf4j
 @Api(tags = "用户账户")
@@ -28,44 +24,26 @@ public class UserAccountController {
     @Resource
     private UserAccountService userAccountService;
 
-    @Autowired
-    private UserService userService;
-
-    private static TokenUtil tu = new TokenUtil();
-
     /**
      * 充值（生成托管平台表单）
      * 对齐接口文档：GET /auth/commitCharge/{chargeAmt}，金额走路径变量
      */
     @ApiOperation("充值")
     @GetMapping("/auth/commitCharge/{chargeAmt}")
-    public PccAjaxResult commitCharge(
-            @PathVariable BigDecimal chargeAmt,
-            @RequestHeader("Authorization") String authorizationHeader) {
-        // 获取 Authorization 头部
-        String token = authorizationHeader;
-        log.info("token:" + token);
-        // 通过 token 获取手机号
-        Map phone = tu.getMapInfoFromToken(token);
-        log.info(phone.toString());
-        String mobile = (String) phone.get("token_phone");
-        // 反查当前登录用户（兼容 demo 的 token_userid）
-        User user = tu.getUserByPhoneOrId(mobile, phone, userService);
-        // 调服务层生成充值托管平台表单
-        String formStr = userAccountService.commitCharge(String.valueOf(chargeAmt), user.getId());
+    public PccAjaxResult commitCharge(@PathVariable BigDecimal chargeAmt) {
+        Long userId = LoginUserContext.getUserid().longValue();
+        String formStr = userAccountService.commitCharge(String.valueOf(chargeAmt), userId);
         return new PccAjaxResult(200, "账户提交充值数据成功", formStr);
     }
 
     /**
      * 充值异步回调
-     * 注意：第三方支付回调一般不应要求登录 token，
-     * 接入真实支付后，需要把本路径加入 JwtAuthInterceptor 白名单。
+     * 注意：第三方支付回调一般不应要求登录 token。
      * 必须返回纯文本 success（小写，不带引号），托管平台收到后停止重试。
      */
     @ApiOperation("充值异步回调")
     @PostMapping(value = "/notify", produces = "text/plain")
     public String notify(HttpServletRequest request) {
-        // 请求参数封装到 map 集合中
         Map<String, Object> paramMap = RequestHelper.switchMap(request.getParameterMap());
         log.info("用户充值异步回调：" + JSON.toJSONString(paramMap));
         // 验签（demo 简化：接入支付平台后在 RequestHelper 中实现真实验签）
@@ -87,18 +65,9 @@ public class UserAccountController {
      */
     @ApiOperation("查询账户余额")
     @GetMapping("/auth/getAccount")
-    public PccAjaxResult getAccount(@RequestHeader("Authorization") String authorizationHeader) {
-        // 获取 Authorization 头部
-        String token = authorizationHeader;
-        log.info("token:" + token);
-        // 通过 token 获取手机号
-        Map phone = tu.getMapInfoFromToken(token);
-        log.info(phone.toString());
-        String mobile = (String) phone.get("token_phone");
-        // 反查当前登录用户
-        User user = tu.getUserByPhoneOrId(mobile, phone, userService);
-        // 查账户余额
-        BigDecimal account = userAccountService.getAccount(user.getId());
+    public PccAjaxResult getAccount() {
+        Long userId = LoginUserContext.getUserid().longValue();
+        BigDecimal account = userAccountService.getAccount(userId);
         return new PccAjaxResult(200, "查询账户余额", account);
     }
 }

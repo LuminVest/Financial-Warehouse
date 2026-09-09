@@ -14,6 +14,11 @@ public interface UserBindService extends IService<UserBind> {
     UserBind getBindByUserId(Long userId);
 
     /**
+     * 根据用户 id 查询绑定信息（取最新一条，逻辑删除过滤）
+     */
+    UserBind getBindInfoByUserId(Long userId);
+
+    /**
      * 提交绑定（保存绑定申请 + 构建托管平台表单）
      *
      * @return 托管平台自动提交表单

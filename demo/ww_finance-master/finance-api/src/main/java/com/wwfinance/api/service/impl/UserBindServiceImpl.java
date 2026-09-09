@@ -37,6 +37,11 @@ public class UserBindServiceImpl extends ServiceImpl<UserBindMapper, UserBind> i
         return this.getOne(wrapper);
     }
 
+    @Override
+    public UserBind getBindInfoByUserId(Long userId) {
+        return baseMapper.getBindInfoByUserId(userId);
+    }
+
     /**
      * 提交绑定：
      * 1. 保存/同步 user_bind 待绑定记录（status = NO_BIND）

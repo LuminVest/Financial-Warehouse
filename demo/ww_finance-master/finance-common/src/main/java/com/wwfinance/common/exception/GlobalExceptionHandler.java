@@ -15,6 +15,12 @@ public class GlobalExceptionHandler {
         return new PccAjaxResult(500, e.getMessage());
     }
 
+    @ExceptionHandler(BusinessException.class)
+    public PccAjaxResult handleBusinessException(BusinessException e) {
+        log.warn("业务异常: {}", e.getMessage());
+        return new PccAjaxResult(e.getCode(), e.getMessage());
+    }
+
     @ExceptionHandler(value = BadSqlGrammarException.class)
     public PccAjaxResult handleException(BadSqlGrammarException e){
         log.error(e.getMessage(), e);

@@ -73,6 +73,12 @@ public class LendItemServiceImpl extends ServiceImpl<LendItemMapper, LendItem> i
      */
     @Override
     public String commitInvest(InvestDTO investDTO, Long userId) {
+        // 0. 覆盖投资人信息（以当前登录用户为准，防止伪造）
+        User user = userService.getById(userId);
+        if (user != null) {
+            investDTO.setInvestUserId(user.getId());
+            investDTO.setInvestName(user.getName());
+        }
         // 1. 校验绑定：必须有托管协议号
         UserBind userBind = userBindService.getBindByUserId(userId);
         if (userBind == null || userBind.getBindCode() == null || userBind.getBindCode().isEmpty()) {

@@ -1,23 +1,15 @@
 package com.wwfinance.api.controller.api;
 
-
 import com.wwfinance.api.entity.Lend;
-import com.wwfinance.api.entity.User;
 import com.wwfinance.api.service.LendService;
-import com.wwfinance.api.service.UserService;
-import com.wwfinance.api.utils.TokenUtil;
+import com.wwfinance.api.utils.LoginUserContext;
 import com.wwfinance.common.result.PccAjaxResult;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -31,11 +23,6 @@ public class LendController {
 
     @Autowired
     private LendService lendService;
-
-    @Autowired
-    private UserService userService;
-
-    private static final TokenUtil tu = new TokenUtil();
 
     @ApiOperation("标的列表")
     @GetMapping("/list")
@@ -65,15 +52,8 @@ public class LendController {
     @ApiOperation("推荐标的（demo 简化：按热度取 topN）")
     @GetMapping("/auth/recommend")
     public PccAjaxResult recommend(
-            @ApiParam(value = "topN，默认 5") @RequestParam(value = "topN", required = false, defaultValue = "5") int topN,
-            @ApiParam(value = "认证token，格式：5grcs xxx", required = true)
-            @RequestHeader("Authorization") String authorizationHeader) {
-        // 解析当前登录用户（推荐逻辑为热度排序，暂不依赖用户历史行为）
-        String token = authorizationHeader;
-        Map<String, String> map = tu.getMapInfoFromToken(token);
-        String uid = map.get("token_userid");
-        User user = userService.getById(Long.valueOf(uid));
-        log.info("推荐标的, userId={}, topN={}", user == null ? null : user.getId(), topN);
+            @ApiParam(value = "topN，默认5") @RequestParam(value = "topN", required = false, defaultValue = "5") int topN) {
+        log.info("推荐标的, userId={}, topN={}", LoginUserContext.getUserid(), topN);
         List<Lend> list = lendService.getRecommendList(topN);
         return new PccAjaxResult(200, "获取推荐标的", list);
     }
