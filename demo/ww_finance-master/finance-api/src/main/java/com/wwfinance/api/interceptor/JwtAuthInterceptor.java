@@ -26,13 +26,22 @@ public class JwtAuthInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
-        String authHeader = request.getHeader("Authorization");
+        // 兼容两种 token 携带方式：
+        // 1. 管理后台前端（ww_finance_admin）：请求头 token（值含 5grcs 前缀）
+        // 2. 前台前端：请求头 Authorization: 5grcs xxx
+        String token = request.getHeader("token");
+        if (token == null || token.isEmpty()) {
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("5grcs ")) {
+                token = authHeader;
+            }
+        }
         // 没有 token 或格式不对
-        if (authHeader == null || authHeader.isEmpty() || !authHeader.startsWith("5grcs ")) {
+        if (token == null || token.isEmpty()) {
             return writeUnauthorized(response, "缺少认证token");
         }
         try {
-            Map<String, String> info = TokenUtil.getMapInfoFromToken(authHeader);
+            Map<String, String> info = TokenUtil.getMapInfoFromToken(token);
             String userid = info.get("token_userid");
             if (userid == null || userid.isEmpty()) {
                 return writeUnauthorized(response, "token无效");

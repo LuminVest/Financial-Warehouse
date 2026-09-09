@@ -33,12 +33,12 @@ export default defineConfig({
     proxy: {
       // 后台管理端 API：/admin/core/**
       '/admin': {
-        target: 'http://localhost:80',
+        target: 'http://localhost:8990',
         changeOrigin: true,
       },
       // 前台用户端 API：/api/core/**
       '/api': {
-        target: 'http://localhost:80',
+        target: 'http://localhost:8990',
         changeOrigin: true,
       },
     },

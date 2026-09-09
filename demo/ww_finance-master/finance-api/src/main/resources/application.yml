@@ -1,6 +1,11 @@
 server:
   port: 8990 #服务端口号
 
+# 管理后台登录账号（demo 简化：固定账号，不建表）
+admin:
+  username: admin
+  password: "123456"
+
 
 spring:
   datasource:

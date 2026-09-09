@@ -31,8 +31,8 @@ const debugTip = DEV_MOCK ? `调试模式 · 默认账号 ${MOCK_USER} / ${MOCK_
 
 // 设置 cookie（和前台 ww-front 保持一致）
 function setTokenCookie(token: string) {
-  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString()
-  document.cookie = `token=${encodeURIComponent(token)}; expires=${expires}; path=/`
+  // 会话级 cookie：不设 expires，浏览器关闭即失效，下次打开需重新登录
+  document.cookie = `token=${encodeURIComponent(token)}; path=/`
 }
 
 // 开发调试模式下，不调后端，直接本地比对
