@@ -18,7 +18,7 @@ import java.util.Map;
 
 /**
  * 用户绑定（实名 + 银行户，对接旺旺银行托管平台）
- * 接口结构与老师版一致：
+ * 接口结构
  *  - GET  /getBindInfo   获取绑定信息
  *  - POST /auth/bind     账户绑定提交数据（返回托管平台表单）
  *  - POST /notify        账户绑定异步回调（第三方回调，免登录）

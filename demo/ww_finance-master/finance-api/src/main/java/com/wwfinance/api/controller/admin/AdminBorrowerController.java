@@ -13,7 +13,7 @@ import java.util.Map;
 
 /**
  * 管理后台-借款人管理
- * 与老师版前端 ww_finance_admin 对齐：
+ * 与前端 ww_finance_admin 对齐：
  *  - GET /admin/core/borrower/page      借款人分页列表（keyword/auditStatus 过滤）
  *  - PUT /admin/core/borrower/{id}/audit 审核借款人（通过/拒绝）
  */

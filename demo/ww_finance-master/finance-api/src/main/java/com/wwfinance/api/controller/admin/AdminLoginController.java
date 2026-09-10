@@ -14,7 +14,7 @@ import java.util.Map;
 
 /**
  * 管理后台-登录
- * 与老师版前端 ww_finance_admin 对齐：
+ * 与前端 ww_finance_admin 对齐：
  *  - POST /admin/core/login    管理员登录（响应 data = token 字符串）
  *  - GET  /admin/core/logout   退出登录
  *  - GET  /admin/core/userInfo 获取当前管理员信息
