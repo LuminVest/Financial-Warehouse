@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.wwfinance.api.entity.BorrowInfo;
 import com.wwfinance.api.entity.Borrower;
 import com.wwfinance.api.entity.Dict;
+import com.wwfinance.api.entity.Lend;
 import com.wwfinance.api.entity.User;
 import com.wwfinance.api.entity.vo.BorrowRecordAdminVO;
 import com.wwfinance.api.enums.BorrowInfoStatusEnum;
@@ -15,6 +16,7 @@ import com.wwfinance.common.exception.BusinessException;
 import com.wwfinance.api.mapper.BorrowInfoMapper;
 import com.wwfinance.api.mapper.BorrowerMapper;
 import com.wwfinance.api.mapper.DictMapper;
+import com.wwfinance.api.mapper.LendMapper;
 import com.wwfinance.api.mapper.UserMapper;
 import com.wwfinance.api.service.BorrowInfoService;
 import lombok.extern.slf4j.Slf4j;
@@ -22,8 +24,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -39,6 +44,9 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
 
     @Autowired
     private DictMapper dictMapper;
+
+    @Autowired
+    private LendMapper lendMapper;
 
     /**
      * 获取借款申请审批状态：查该用户最近一条借款信息的 status
@@ -149,6 +157,58 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
         }
         borrowInfo.setStatus(targetStatus);
         this.updateById(borrowInfo);
+        // 审核通过 → 自动生成可投标的标的（BorrowInfo → Lend），进入募集中
+        if (targetStatus == 2) {
+            createLendByBorrowInfo(borrowInfo);
+        }
+    }
+
+    /**
+     * 审核通过后自动生成标的：
+     *  - 同一借款申请只生成一次（按 borrow_info_id 幂等）
+     *  - 金额/期限/利率/还款方式从借款申请带出
+     *  - 借款用途经字典转中文存入 lend_info
+     */
+    private void createLendByBorrowInfo(BorrowInfo borrowInfo) {
+        Integer exist = lendMapper.selectCount(new LambdaQueryWrapper<Lend>()
+                .eq(Lend::getBorrowInfoId, borrowInfo.getId())
+                .apply("is_deleted = 0"));
+        if (exist != null && exist > 0) {
+            log.info("借款申请已生成标的, 跳过: borrowInfoId={}", borrowInfo.getId());
+            return;
+        }
+        User user = userMapper.selectById(borrowInfo.getUserId());
+        Lend lend = new Lend();
+        lend.setUserId(borrowInfo.getUserId());
+        lend.setBorrowInfoId(borrowInfo.getId());
+        lend.setLendNo("LEND" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"))
+                + String.format(Locale.ROOT, "%03d", (int) (Math.random() * 1000)));
+        lend.setTitle((user == null ? "" : user.getName()) + "的借款标的");
+        lend.setAmount(borrowInfo.getAmount());
+        lend.setPeriod(borrowInfo.getPeriod());
+        lend.setLendYearRate(borrowInfo.getBorrowYearRate());
+        lend.setReturnMethod(borrowInfo.getReturnMethod());
+        lend.setLendInfo(convertMoneyUse(borrowInfo.getMoneyUse()));
+        lend.setStatus(1); // 募集中
+        lend.setInvestAmount(BigDecimal.ZERO);
+        lend.setInvestNum(0);
+        lend.setPublishDate(LocalDateTime.now());
+        lend.setDeleted(false);
+        lendMapper.insert(lend);
+        log.info("审核通过自动生成标的: borrowInfoId={}, lendId={}, title={}",
+                borrowInfo.getId(), lend.getId(), lend.getTitle());
+    }
+
+    /** 借款用途数字 → 字典中文 */
+    private String convertMoneyUse(Integer moneyUse) {
+        if (moneyUse == null) {
+            return "";
+        }
+        Dict dict = dictMapper.selectOne(new LambdaQueryWrapper<Dict>()
+                .eq(Dict::getDictCode, "moneyUse")
+                .eq(Dict::getValue, moneyUse)
+                .last("limit 1"));
+        return dict == null ? "" : dict.getName();
     }
 
     /**
