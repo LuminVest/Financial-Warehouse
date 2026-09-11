@@ -54,6 +54,12 @@ public class User  implements Serializable {
     private String idCard;
 
     /**
+     * 性别(0未知 1男 2女)
+     */
+    @TableField("gender")
+    private Integer gender;
+
+    /**
      * 邮箱
      */
     @TableField("email")
