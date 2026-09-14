@@ -41,6 +41,7 @@ public class MyWebConfig  implements WebMvcConfigurer {
                         "/api/core/userAccount/notify",         // 充值异步回调（第三方支付回调无需登录）
                         "/api/core/userBind/notify",            // 用户绑定异步回调（第三方托管平台回调无需登录）
                         "/api/core/lendItem/notify",            // 投资异步回调（第三方托管平台回调无需登录）
+                        "/api/user/lendReturn/notifyUrl",       // 还款异步回调（第三方托管平台回调无需登录）
                         "/admin/core/user/login",               // 后台登录（预留）
                         "/admin/core/login",                    // 管理员登录（ww_finance_admin 前端）
                         "/admin/core/logout",                   // 退出登录（幂等，无需登录态）
