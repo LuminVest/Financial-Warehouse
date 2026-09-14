@@ -222,7 +222,9 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
         vo.setBorrowerName(user == null ? "" : user.getName());
         vo.setAmount(info.getAmount());
         vo.setTerm(info.getPeriod());
-        vo.setRate(info.getBorrowYearRate());
+        // 利率口径：库中存小数（0.08=8%），接口统一返回百分数（8），前端直接拼 "%"
+        vo.setRate(info.getBorrowYearRate() == null ? null
+                : info.getBorrowYearRate().multiply(new BigDecimal(100)));
         // 后端状态 → 前端状态
         Integer st = info.getStatus();
         if (st != null && st == 2) {

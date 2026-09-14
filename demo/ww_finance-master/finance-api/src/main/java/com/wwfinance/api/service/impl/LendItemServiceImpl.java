@@ -9,7 +9,9 @@ import com.wwfinance.api.entity.User;
 import com.wwfinance.api.entity.UserBind;
 import com.wwfinance.api.entity.dto.InvestDTO;
 import com.wwfinance.api.mapper.LendItemMapper;
+import com.wwfinance.api.service.LendItemReturnService;
 import com.wwfinance.api.service.LendItemService;
+import com.wwfinance.api.service.LendReturnService;
 import com.wwfinance.api.service.LendService;
 import com.wwfinance.api.service.UserBindService;
 import com.wwfinance.api.service.UserService;
@@ -56,6 +58,12 @@ public class LendItemServiceImpl extends ServiceImpl<LendItemMapper, LendItem> i
 
     @Autowired
     private UserBindService userBindService;
+
+    @Autowired
+    private LendReturnService lendReturnService;
+
+    @Autowired
+    private LendItemReturnService lendItemReturnService;
 
     @Override
     public List<LendItem> getListByLendId(Long lendId) {
@@ -209,6 +217,10 @@ public class LendItemServiceImpl extends ServiceImpl<LendItemMapper, LendItem> i
         if (newInvested.compareTo(lend.getAmount()) >= 0) {
             lend.setStatus(LEND_STATUS_FULL);
             log.info("标的满标, lendId={}, lendNo={}", lend.getId(), lendNo);
+            // 满标 → 自动生成还款计划（按标的还款方式拆期；幂等，重复回调不会重复生成）
+            lendReturnService.generateReturnPlan(lend);
+            // 满标 → 自动生成回款明细（还款计划按投资人份额拆分；幂等）
+            lendItemReturnService.generateReturnDetail(lend);
         }
         lendService.updateById(lend);
         return "success";
