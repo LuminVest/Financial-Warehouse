@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.wwfinance.api.entity.Lend;
 import com.wwfinance.api.entity.LendItem;
 import com.wwfinance.api.entity.User;
+import com.wwfinance.api.entity.UserAccount;
 import com.wwfinance.api.entity.UserBind;
 import com.wwfinance.api.entity.dto.InvestDTO;
 import com.wwfinance.api.mapper.LendItemMapper;
@@ -13,6 +14,7 @@ import com.wwfinance.api.service.LendItemReturnService;
 import com.wwfinance.api.service.LendItemService;
 import com.wwfinance.api.service.LendReturnService;
 import com.wwfinance.api.service.LendService;
+import com.wwfinance.api.service.UserAccountService;
 import com.wwfinance.api.service.UserBindService;
 import com.wwfinance.api.service.UserService;
 import com.wwfinance.api.utils.Amount1Helper;
@@ -64,6 +66,12 @@ public class LendItemServiceImpl extends ServiceImpl<LendItemMapper, LendItem> i
 
     @Autowired
     private LendItemReturnService lendItemReturnService;
+
+    @Autowired
+    private UserAccountService userAccountService;
+
+    @Autowired
+    private com.wwfinance.api.mapper.LendMapper lendMapper;
 
     @Override
     public List<LendItem> getListByLendId(Long lendId) {
@@ -208,22 +216,53 @@ public class LendItemServiceImpl extends ServiceImpl<LendItemMapper, LendItem> i
         lendItem.setDeleted(false);
         this.save(lendItem);
 
-        // 更新标的：累加已投金额/人数，满标置状态
-        BigDecimal invested = lend.getInvestAmount() == null ? BigDecimal.ZERO : lend.getInvestAmount();
-        BigDecimal newInvested = invested.add(voteAmt);
-        Integer num = lend.getInvestNum() == null ? 0 : lend.getInvestNum();
-        lend.setInvestAmount(newInvested);
-        lend.setInvestNum(num + 1);
-        if (newInvested.compareTo(lend.getAmount()) >= 0) {
-            lend.setStatus(LEND_STATUS_FULL);
-            log.info("标的满标, lendId={}, lendNo={}", lend.getId(), lendNo);
-            // 满标 → 自动生成还款计划（按标的还款方式拆期；幂等，重复回调不会重复生成）
-            lendReturnService.generateReturnPlan(lend);
-            // 满标 → 自动生成回款明细（还款计划按投资人份额拆分；幂等）
-            lendItemReturnService.generateReturnDetail(lend);
+        // 投资人本地账户同步扣减（银行托管侧已扣款，本地账本镜像）
+        debitInvestor(investUserId, voteAmt);
+
+        // 更新标的：原子累加已投金额/人数（并发投标不会超投/丢更新），满标自动置状态
+        int rows = lendMapper.addInvest(lend.getId(), voteAmt);
+        if (rows == 0) {
+            throw new RuntimeException("投标金额超出剩余可投金额");
         }
-        lendService.updateById(lend);
+        // 重新读取最新标的：达到总额即满标，生成还款计划/回款明细（均幂等）
+        Lend latest = lendService.getById(lend.getId());
+        if (latest != null && latest.getInvestAmount() != null
+                && latest.getInvestAmount().compareTo(latest.getAmount()) >= 0
+                && (latest.getStatus() == null || latest.getStatus() != LEND_STATUS_FULL)) {
+            latest.setStatus(LEND_STATUS_FULL);
+            lendService.updateById(latest);
+            log.info("标的满标, lendId={}, lendNo={}", latest.getId(), latest.getLendNo());
+            // 满标 → 自动生成还款计划（按标的还款方式拆期；幂等，重复回调不会重复生成）
+            lendReturnService.generateReturnPlan(latest);
+            // 满标 → 自动生成回款明细（还款计划按投资人份额拆分；幂等）
+            lendItemReturnService.generateReturnDetail(latest);
+        }
         return "success";
+    }
+
+    /** 投资人投标本地账户扣减（银行托管账户已扣款，本地账本同步） */
+    private void debitInvestor(Long userId, BigDecimal amount) {
+        if (userId == null) {
+            log.warn("投资人账户扣减跳过: userId 为空");
+            return;
+        }
+        UserAccount account = userAccountService.getOne(new LambdaQueryWrapper<UserAccount>()
+                .eq(UserAccount::getUserId, userId));
+        if (account == null) {
+            log.warn("投资人账户扣减跳过: 无账户记录 userId={}", userId);
+            return;
+        }
+        BigDecimal old = account.getAmount() == null ? BigDecimal.ZERO : account.getAmount();
+        if (old.compareTo(amount) < 0) {
+            // 本地账本滞后于托管（如历史数据未同步），扣到 0 并告警，不阻塞业务
+            log.warn("投资人本地余额不足, 扣至0, userId={}, 余额={}, 应扣={}", userId, old, amount);
+            account.setAmount(BigDecimal.ZERO);
+        } else {
+            account.setAmount(old.subtract(amount));
+        }
+        account.setUpdateTime(LocalDateTime.now());
+        userAccountService.saveOrUpdate(account);
+        log.info("投资人投标扣款, userId={}, 扣减={}, 当前余额={}", userId, amount, account.getAmount());
     }
 
     private BigDecimal calcInterest(BigDecimal invest, BigDecimal yearRate, int totalmonth, int returnMethod) {

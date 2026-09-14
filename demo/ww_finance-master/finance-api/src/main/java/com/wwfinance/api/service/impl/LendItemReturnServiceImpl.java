@@ -72,36 +72,46 @@ public class LendItemReturnServiceImpl extends ServiceImpl<LendItemReturnMapper,
         }
         int itemCount = items.size();
 
-        // 逐期拆分：第 p 期还款计划 × 投资人份额，最后一位投资人兜底消除四舍五入误差
+        // 逐期拆分：分币分配法（每人向下取整到分 + 余数分币分发），
+        // 数学保证：每项 ≥ 0 且 Σ本金/Σ利息/Σ合计 精确等于该期计划值（任意人数都不会出现负数）
         for (LendReturn plan : planList) {
             BigDecimal planPrincipal = plan.getPrincipal() == null ? BigDecimal.ZERO : plan.getPrincipal();
             BigDecimal planInterest = plan.getInterest() == null ? BigDecimal.ZERO : plan.getInterest();
-            BigDecimal accPrincipal = BigDecimal.ZERO; // 该期已拆出的本金合计
-            BigDecimal accInterest = BigDecimal.ZERO;  // 该期已拆出的利息合计
-
+            // 计划值换算成"分"（整数运算，无浮点误差）
+            long planPCents = planPrincipal.movePointRight(2).longValueExact();
+            long planICents = planInterest.movePointRight(2).longValueExact();
+            long[] pCents = new long[itemCount]; // 每位投资人应得本金（分）
+            long[] iCents = new long[itemCount]; // 每位投资人应得利息（分）
+            long accPC = 0;
+            long accIC = 0;
             for (int idx = 0; idx < itemCount; idx++) {
-                LendItem item = items.get(idx);
-                boolean lastItem = (idx == itemCount - 1);
-
-                BigDecimal principal;
-                BigDecimal interest;
-                if (lastItem) {
-                    // 兜底：最后一位投资人的本金/利息 = 该期计划值 - 前面投资人合计
-                    principal = planPrincipal.subtract(accPrincipal);
-                    interest = planInterest.subtract(accInterest);
-                } else {
-                    principal = planPrincipal.multiply(ratios.get(idx)).setScale(2, RoundingMode.HALF_UP);
-                    interest = planInterest.multiply(ratios.get(idx)).setScale(2, RoundingMode.HALF_UP);
-                    accPrincipal = accPrincipal.add(principal);
-                    accInterest = accInterest.add(interest);
+                // 向下取整到分：plan × 份额，截断分币小数（floor）
+                pCents[idx] = planPrincipal.multiply(ratios.get(idx)).movePointRight(2).longValue();
+                iCents[idx] = planInterest.multiply(ratios.get(idx)).movePointRight(2).longValue();
+                accPC += pCents[idx];
+                accIC += iCents[idx];
+            }
+            // 余数分币（0 ~ 投资人数量-1 之间），按投资顺序每户补 1 分
+            long remainP = planPCents - accPC;
+            long remainI = planICents - accIC;
+            for (int idx = 0; idx < itemCount; idx++) {
+                long pc = pCents[idx];
+                long ic = iCents[idx];
+                if (idx < remainP) {
+                    pc += 1;
                 }
+                if (idx < remainI) {
+                    ic += 1;
+                }
+                BigDecimal principal = BigDecimal.valueOf(pc, 2);
+                BigDecimal interest = BigDecimal.valueOf(ic, 2);
 
                 LendItemReturn detail = new LendItemReturn();
                 detail.setLendReturnId(plan.getId());
-                detail.setLendItemId(item.getId());
+                detail.setLendItemId(items.get(idx).getId());
                 detail.setLendId(lend.getId());
-                detail.setInvestUserId(item.getInvestUserId());
-                detail.setInvestAmount(item.getInvestAmount());
+                detail.setInvestUserId(items.get(idx).getInvestUserId());
+                detail.setInvestAmount(items.get(idx).getInvestAmount());
                 detail.setCurrentPeriod(plan.getCurrentPeriod());
                 detail.setLendYearRate(plan.getLendYearRate());
                 detail.setReturnMethod(plan.getReturnMethod());

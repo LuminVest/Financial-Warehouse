@@ -13,7 +13,7 @@ import java.util.Map;
 
 /**
  * 管理后台-会员管理
- * 与老师版前端 ww_finance_admin 对齐：
+ * 与前端 ww_finance_admin 对齐：
  *  - GET  /admin/core/member/page         分页列表（keyword/status）
  *  - POST /admin/core/member              新增会员
  *  - PUT  /admin/core/member/{id}/status  启用/禁用
