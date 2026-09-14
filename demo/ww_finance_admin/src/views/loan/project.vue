@@ -250,7 +250,7 @@ onMounted(fetchList)
           <template #default="{ row }">{{ row.rate }}%</template>
         </el-table-column>
         <el-table-column label="期限" width="80" align="center">
-          <template #default="{ row }">{{ row.term }}天</template>
+          <template #default="{ row }">{{ row.term }}个月</template>
         </el-table-column>
         <el-table-column label="风险等级" width="90" align="center">
           <template #default="{ row }">
@@ -356,7 +356,7 @@ onMounted(fetchList)
           <span class="money">¥{{ detailData.amount.toLocaleString() }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="年化利率">{{ detailData.rate }}%</el-descriptions-item>
-        <el-descriptions-item label="借款期限">{{ detailData.term }} 天</el-descriptions-item>
+        <el-descriptions-item label="借款期限">{{ detailData.term }} 个月</el-descriptions-item>
         <el-descriptions-item label="风险等级">
           <el-tag :type="riskMap[detailData.riskLevel]?.type as string" size="small">
             {{ riskMap[detailData.riskLevel]?.text }}
@@ -432,7 +432,7 @@ onMounted(fetchList)
           </template>
         </el-table-column>
         <el-table-column label="投资期限" width="90" align="center">
-          <template #default="{ row }">{{ row.term }} 天</template>
+          <template #default="{ row }">{{ row.term }} 个月</template>
         </el-table-column>
         <el-table-column label="状态" width="90" align="center">
           <template #default="{ row }">

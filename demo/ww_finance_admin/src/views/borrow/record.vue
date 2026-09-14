@@ -183,7 +183,7 @@ onMounted(fetchList)
           </template>
         </el-table-column>
         <el-table-column label="期限" width="80" align="center">
-          <template #default="{ row }">{{ row.term }} 天</template>
+          <template #default="{ row }">{{ row.term }} 个月</template>
         </el-table-column>
         <el-table-column label="年化利率" width="100" align="center">
           <template #default="{ row }">{{ row.rate }}%</template>
@@ -232,7 +232,7 @@ onMounted(fetchList)
         <el-descriptions-item label="借款金额">
           <span class="money">¥{{ detailData.amount.toLocaleString() }}</span>
         </el-descriptions-item>
-        <el-descriptions-item label="借款期限">{{ detailData.term }} 天</el-descriptions-item>
+        <el-descriptions-item label="借款期限">{{ detailData.term }} 个月</el-descriptions-item>
         <el-descriptions-item label="年化利率">{{ detailData.rate }}%</el-descriptions-item>
         <el-descriptions-item label="借款用途">{{ detailData.purpose }}</el-descriptions-item>
         <el-descriptions-item label="状态">
