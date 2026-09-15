@@ -7,6 +7,8 @@ import com.wwfinance.api.entity.UserBind;
 import com.wwfinance.api.mapper.UserAccountMapper;
 import com.wwfinance.api.mapper.UserBindMapper;
 import com.wwfinance.api.service.UserAccountService;
+import com.wwfinance.api.service.TransFlowService;
+import com.wwfinance.api.service.UserIntegralService;
 import com.wwfinance.api.utils.FormHelper;
 import com.wwfinance.api.utils.HfbConst;
 import com.wwfinance.api.utils.LendNoUtils;
@@ -28,6 +30,12 @@ public class UserAccountServiceimpl extends ServiceImpl<UserAccountMapper, UserA
 
     @Resource
     private UserBindMapper userBindMapper;
+
+    @Resource
+    private TransFlowService transFlowService;
+
+    @Resource
+    private UserIntegralService userIntegralService;
 
     @Override
     public UserAccount getUserById(Long id) {
@@ -115,6 +123,11 @@ public class UserAccountServiceimpl extends ServiceImpl<UserAccountMapper, UserA
         }
         this.saveOrUpdate(account);
         log.info("充值到账成功, userId={}, 到账={}, 当前余额={}", userId, amount, account.getAmount());
+
+        // 埋点：充值流水 + 积分（1元=1分，幂等键=商户订单号）
+        String billNo = String.valueOf(paramMap.get("agentBillNo"));
+        transFlowService.addFlow(userId, 1, billNo, amount, "充值到账");
+        userIntegralService.addIntegral(userId, amount.intValue(), "充值" + billNo);
         return "success";
     }
 

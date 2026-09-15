@@ -18,6 +18,8 @@ import com.wwfinance.api.service.LendReturnService;
 import com.wwfinance.api.service.LendService;
 import com.wwfinance.api.service.UserAccountService;
 import com.wwfinance.api.service.UserBindService;
+import com.wwfinance.api.service.TransFlowService;
+import com.wwfinance.api.service.UserIntegralService;
 import com.wwfinance.api.utils.Amount1Helper;
 import com.wwfinance.api.utils.Amount2Helper;
 import com.wwfinance.api.utils.Amount3Helper;
@@ -77,6 +79,12 @@ public class LendReturnServiceImpl extends ServiceImpl<LendReturnMapper, LendRet
 
     @Autowired
     private LendItemService lendItemService;
+
+    @Autowired
+    private TransFlowService transFlowService;
+
+    @Autowired
+    private UserIntegralService userIntegralService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -368,6 +376,11 @@ public class LendReturnServiceImpl extends ServiceImpl<LendReturnMapper, LendRet
         // 8. 借款人本地账户扣减（与银行托管账户扣款同步）
         debitBorrower(plan.getUserId(), plan.getTotal() == null ? BigDecimal.ZERO : plan.getTotal());
 
+        // 埋点：还款流水（借款人支出，不计积分）
+        transFlowService.addFlow(plan.getUserId(), 6, returnNo,
+                plan.getTotal() == null ? BigDecimal.ZERO : plan.getTotal(),
+                "第" + plan.getCurrentPeriod() + "期还款");
+
         // 9. 同步该期回款明细 + 投资人入账
         List<LendItemReturn> details = lendItemReturnService.list(new LambdaQueryWrapper<LendItemReturn>()
                 .eq(LendItemReturn::getLendId, plan.getLendId())
@@ -388,6 +401,12 @@ public class LendReturnServiceImpl extends ServiceImpl<LendReturnMapper, LendRet
             // 投资人回款入账：user_account.amount += 该期回款
             if (detail.getInvestUserId() != null) {
                 creditInvestor(detail.getInvestUserId(), detail.getTotal() == null ? BigDecimal.ZERO : detail.getTotal());
+                // 埋点：回款流水 + 积分（1元=1分，幂等键=还款单号+回款明细id）
+                BigDecimal returnAmt = detail.getTotal() == null ? BigDecimal.ZERO : detail.getTotal();
+                transFlowService.addFlow(detail.getInvestUserId(), 4, returnNo + "_" + detail.getId(),
+                        returnAmt, "第" + plan.getCurrentPeriod() + "期回款");
+                userIntegralService.addIntegral(detail.getInvestUserId(), returnAmt.intValue(),
+                        "回款" + returnNo + "_" + detail.getId());
             }
         }
         log.info("还款同步回款明细完成: returnNo={}, 投资人={}人", returnNo, details.size());

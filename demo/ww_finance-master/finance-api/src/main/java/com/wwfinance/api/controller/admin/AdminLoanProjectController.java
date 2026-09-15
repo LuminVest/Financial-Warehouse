@@ -65,6 +65,13 @@ public class AdminLoanProjectController {
         return new PccAjaxResult(200, "下架成功");
     }
 
+    @ApiOperation("放款（满标后手动触发放款，幂等）")
+    @PutMapping("/{id}/loan")
+    public PccAjaxResult loan(@ApiParam(value = "标的id", required = true) @PathVariable Long id) {
+        loanProjectService.loanByAdmin(id);
+        return new PccAjaxResult(200, "放款成功");
+    }
+
     @ApiOperation("标的投资列表")
     @GetMapping("/{projectId}/investments")
     public PccAjaxResult investments(

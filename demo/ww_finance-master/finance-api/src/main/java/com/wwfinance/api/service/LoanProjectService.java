@@ -31,4 +31,9 @@ public interface LoanProjectService {
      * 管理后台：某标的的投资列表
      */
     List<Object> listInvestments(Long projectId);
+
+    /**
+     * 管理后台：放款（满标后手动触发放款，幂等）
+     */
+    void loanByAdmin(Long id);
 }

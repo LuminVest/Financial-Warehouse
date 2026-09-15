@@ -10,6 +10,9 @@ import com.wwfinance.api.entity.vo.LoanProjectAdminVO;
 import com.wwfinance.api.mapper.LendItemMapper;
 import com.wwfinance.api.mapper.LendMapper;
 import com.wwfinance.api.mapper.UserMapper;
+import com.wwfinance.api.service.LendItemReturnService;
+import com.wwfinance.api.service.LendReturnService;
+import com.wwfinance.api.service.LendService;
 import com.wwfinance.api.service.LoanProjectService;
 import com.wwfinance.common.exception.BusinessException;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +36,15 @@ public class LoanProjectServiceImpl implements LoanProjectService {
 
     @Autowired
     private LendMapper lendMapper;
+
+    @Autowired
+    private LendService lendService;
+
+    @Autowired
+    private LendReturnService lendReturnService;
+
+    @Autowired
+    private LendItemReturnService lendItemReturnService;
 
     @Autowired
     private LendItemMapper lendItemMapper;
@@ -122,8 +134,23 @@ public class LoanProjectServiceImpl implements LoanProjectService {
     }
 
     @Override
-    public List<Object> listInvestments(Long projectId) {
-        LambdaQueryWrapper<LendItem> wrapper = new LambdaQueryWrapper<>();
+    public void loanByAdmin(Long id) {
+        Lend lend = lendMapper.selectById(id);
+        if (lend == null) {
+            throw new BusinessException("标的不存在");
+        }
+        if (lend.getStatus() == null || lend.getStatus() != 2) {
+            throw new BusinessException("仅满标状态的标的可以放款");
+        }
+        // 补齐满标后处理（均幂等）：还款计划 → 回款明细 → 放款
+        lendReturnService.generateReturnPlan(lend);
+        lendItemReturnService.generateReturnDetail(lend);
+        lendService.makeLoan(id);
+        log.info("管理后台放款成功: id={}", id);
+    }
+
+    @Override
+    public List<Object> listInvestments(Long projectId) {        LambdaQueryWrapper<LendItem> wrapper = new LambdaQueryWrapper<>();
         wrapper.apply("is_deleted = 0").eq(LendItem::getLendId, projectId)
                 .orderByDesc(LendItem::getInvestTime);
         List<LendItem> items = lendItemMapper.selectList(wrapper);

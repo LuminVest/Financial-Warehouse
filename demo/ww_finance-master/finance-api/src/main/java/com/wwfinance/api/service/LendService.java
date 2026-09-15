@@ -34,4 +34,10 @@ public interface LendService extends IService<Lend> {
      */
     List<Lend> getRecommendList(int topN);
 
+    /**
+     * 放款：满标后同步调用银行放款接口（解冻投资人资金→划转借款人），
+     * 成功后借款人本地账户入账并置标的为已放款(3)。幂等：已放款直接跳过。
+     */
+    void makeLoan(Long lendId);
+
 }

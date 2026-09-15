@@ -17,6 +17,8 @@ import com.wwfinance.api.service.LendService;
 import com.wwfinance.api.service.UserAccountService;
 import com.wwfinance.api.service.UserBindService;
 import com.wwfinance.api.service.UserService;
+import com.wwfinance.api.service.TransFlowService;
+import com.wwfinance.api.service.UserIntegralService;
 import com.wwfinance.api.utils.Amount1Helper;
 import com.wwfinance.api.utils.Amount2Helper;
 import com.wwfinance.api.utils.Amount3Helper;
@@ -49,6 +51,9 @@ public class LendItemServiceImpl extends ServiceImpl<LendItemMapper, LendItem> i
     /** 标的满标状态 */
     private static final int LEND_STATUS_FULL = 2;
 
+    /** 标的已放款状态 */
+    private static final int LEND_STATUS_LOANED = 3;
+
     /** 投资记录状态：已支付 */
     private static final int ITEM_STATUS_PAID = 1;
 
@@ -69,6 +74,12 @@ public class LendItemServiceImpl extends ServiceImpl<LendItemMapper, LendItem> i
 
     @Autowired
     private UserAccountService userAccountService;
+
+    @Autowired
+    private TransFlowService transFlowService;
+
+    @Autowired
+    private UserIntegralService userIntegralService;
 
     @Autowired
     private com.wwfinance.api.mapper.LendMapper lendMapper;
@@ -139,6 +150,11 @@ public class LendItemServiceImpl extends ServiceImpl<LendItemMapper, LendItem> i
         paramMap.put("voteAmt", investAmount);
         paramMap.put("votePrizeAmt", "0");
         paramMap.put("voteFeeAmt", "0");
+        // 收款人=借款人托管协议号：银行放款时按 benefitBindCode 将放款划转给借款人（UserInvest.benefitBindCode）
+        UserBind borrowBind = userBindService.getOne(new LambdaQueryWrapper<UserBind>()
+                .eq(UserBind::getUserId, lend.getUserId())
+                .apply("is_deleted = 0"));
+        paramMap.put("benefitBindCode", borrowBind == null ? "" : borrowBind.getBindCode());
         paramMap.put("returnUrl", HfbConst.INVEST_RETURN_URL);
         paramMap.put("notifyUrl", HfbConst.INVEST_NOTIFY_URL);
         paramMap.put("timestamp", RequestHelper.getTimestamp());
@@ -219,6 +235,10 @@ public class LendItemServiceImpl extends ServiceImpl<LendItemMapper, LendItem> i
         // 投资人本地账户同步扣减（银行托管侧已扣款，本地账本镜像）
         debitInvestor(investUserId, voteAmt);
 
+        // 埋点：投标流水 + 积分（1元=1分，幂等键=投资单号）
+        transFlowService.addFlow(investUserId, 3, lendItemNo, voteAmt, "投标：" + lend.getTitle());
+        userIntegralService.addIntegral(investUserId, voteAmt.intValue(), "投标" + lendItemNo);
+
         // 更新标的：原子累加已投金额/人数（并发投标不会超投/丢更新），满标自动置状态
         int rows = lendMapper.addInvest(lend.getId(), voteAmt);
         if (rows == 0) {
@@ -228,7 +248,7 @@ public class LendItemServiceImpl extends ServiceImpl<LendItemMapper, LendItem> i
         Lend latest = lendService.getById(lend.getId());
         if (latest != null && latest.getInvestAmount() != null
                 && latest.getInvestAmount().compareTo(latest.getAmount()) >= 0
-                && (latest.getStatus() == null || latest.getStatus() != LEND_STATUS_FULL)) {
+                && (latest.getStatus() == null || latest.getStatus() != LEND_STATUS_LOANED)) {
             latest.setStatus(LEND_STATUS_FULL);
             lendService.updateById(latest);
             log.info("标的满标, lendId={}, lendNo={}", latest.getId(), latest.getLendNo());
@@ -236,6 +256,8 @@ public class LendItemServiceImpl extends ServiceImpl<LendItemMapper, LendItem> i
             lendReturnService.generateReturnPlan(latest);
             // 满标 → 自动生成回款明细（还款计划按投资人份额拆分；幂等）
             lendItemReturnService.generateReturnDetail(latest);
+            // 满标 → 自动放款：同步调用银行（解冻投资人资金→划转借款人），借款人本地入账（幂等）
+            lendService.makeLoan(latest.getId());
         }
         return "success";
     }
