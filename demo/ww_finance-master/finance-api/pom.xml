@@ -51,6 +51,12 @@
             <groupId>org.example</groupId>
             <artifactId>finance-base</artifactId>
         </dependency>
+        <!-- 数据字典 Excel 导入导出（3.x 兼容 JDK8/JDK17，不依赖 cglib） -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>easyexcel</artifactId>
+            <version>3.1.5</version>
+        </dependency>
         <!-- 引用父 POM 中管理的 JAXB 版本 -->
         <dependency>
             <groupId>javax.xml.bind</groupId>
