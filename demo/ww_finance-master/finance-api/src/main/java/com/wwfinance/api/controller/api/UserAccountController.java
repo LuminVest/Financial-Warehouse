@@ -61,6 +61,18 @@ public class UserAccountController {
     }
 
     /**
+     * 提现（生成托管平台表单）
+     * 对应接口文档：GET /auth/commitWithdraw/{withdrawAmt}，金额走路径变量
+     */
+    @ApiOperation("提现")
+    @GetMapping("/auth/commitWithdraw/{withdrawAmt}")
+    public PccAjaxResult commitWithdraw(@PathVariable BigDecimal withdrawAmt) {
+        Long userId = LoginUserContext.getUserid().longValue();
+        String formStr = userAccountService.commitWithdraw(String.valueOf(withdrawAmt), userId);
+        return new PccAjaxResult(200, "账户提交提现数据成功", formStr);
+    }
+
+    /**
      * 查询账户余额
      */
     @ApiOperation("查询账户余额")

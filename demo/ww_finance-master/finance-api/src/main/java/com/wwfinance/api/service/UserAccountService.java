@@ -25,4 +25,14 @@ public interface UserAccountService extends IService<UserAccount> {
      */
     String notify(Map<String, Object> paramMap);
 
+    /**
+     * 提现（生成托管平台表单/订单号）
+     */
+    String commitWithdraw(String withdrawAmt, Long userId);
+
+    /**
+     * 提现异步回调：同步账户数据
+     */
+    String notifyWithdraw(Map<String, Object> paramMap);
+
 }

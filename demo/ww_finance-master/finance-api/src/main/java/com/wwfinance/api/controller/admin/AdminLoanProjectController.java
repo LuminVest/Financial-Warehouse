@@ -38,7 +38,7 @@ public class AdminLoanProjectController {
             @RequestParam(value = "pageSize", required = false, defaultValue = "10") long pageSize,
             @ApiParam(value = "关键词(标的名称/借款人)", required = false)
             @RequestParam(value = "keyword", required = false) String keyword,
-            @ApiParam(value = "状态(0待发布 1募资中 2已完成 3已逾期 4已下架)", required = false)
+            @ApiParam(value = "状态(0待发布 1募资中 2满标 3还款中 4已下架)", required = false)
             @RequestParam(value = "status", required = false) Integer status) {
         return new PccAjaxResult(200, "获取成功",
                 loanProjectService.pageForAdmin(pageNum, pageSize, keyword, status));

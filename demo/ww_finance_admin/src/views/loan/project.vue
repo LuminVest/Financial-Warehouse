@@ -183,8 +183,8 @@ const investSummary = computed(() => {
 const statusMap: Record<number, { text: string; type: string }> = {
   0: { text: '待发布', type: 'info' },
   1: { text: '募资中', type: 'warning' },
-  2: { text: '已完成', type: 'success' },
-  3: { text: '已逾期', type: 'danger' },
+  2: { text: '满标', type: 'success' },
+  3: { text: '还款中', type: 'primary' },
   4: { text: '已下架', type: 'info' },
 }
 const riskMap: Record<number, { text: string; type: string }> = {
@@ -223,8 +223,8 @@ onMounted(fetchList)
           <el-select v-model="searchForm.status" placeholder="全部" clearable style="width: 120px">
             <el-option label="待发布" :value="0" />
             <el-option label="募资中" :value="1" />
-            <el-option label="已完成" :value="2" />
-            <el-option label="已逾期" :value="3" />
+            <el-option label="满标" :value="2" />
+            <el-option label="还款中" :value="3" />
             <el-option label="已下架" :value="4" />
           </el-select>
         </el-form-item>
