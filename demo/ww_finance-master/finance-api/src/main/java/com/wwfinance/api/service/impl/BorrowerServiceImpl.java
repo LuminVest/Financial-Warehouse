@@ -15,6 +15,7 @@ import com.wwfinance.api.mapper.BorrowerAttachMapper;
 import com.wwfinance.api.mapper.BorrowerMapper;
 import com.wwfinance.api.mapper.UserMapper;
 import com.wwfinance.api.service.BorrowerService;
+import com.wwfinance.api.service.UserIntegralService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +36,9 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private UserIntegralService userIntegralService;
 
     /**
      * 借款人认证提交：
@@ -122,7 +126,7 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
     }
 
     @Override
-    public void auditByAdmin(Long id, Integer auditStatus, String remark) {
+    public int auditByAdmin(Long id, Integer auditStatus, String remark) {
         Borrower borrower = this.getById(id);
         if (borrower == null) {
             throw new BusinessException("借款人不存在");
@@ -136,6 +140,9 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
         } else {
             throw new BusinessException("非法的审核状态");
         }
+        // 审批前原始状态（用于积分防重判断，必须在 setStatus 之前取值）
+        Integer oldStatus = borrower.getStatus();
+        boolean needIntegral = targetStatus == 2 && (oldStatus == null || oldStatus != 2);
         borrower.setStatus(targetStatus);
         this.updateById(borrower);
         // 同步 user 表借款人认证状态
@@ -144,6 +151,60 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
             user.setBorrowAuthStatus(targetStatus);
             userMapper.updateById(user);
         }
+        // 审批通过 → 积分回写（状态机防重：已是通过状态不再加分）
+        // 积分规则：基本信息 30 + 身份证 30 + 车辆 30 + 房产 100
+        int score = 0;
+        if (needIntegral) {
+            score = calcBorrowerScore(id);
+            if (score > 0) {
+                userIntegralService.addIntegral(borrower.getUserId(), score, "借款人认证审批通过-" + id);
+                log.info("借款人审批通过积分回写, borrowerId={}, userId={}, score={}", id, borrower.getUserId(), score);
+            }
+        }
+        return score;
+    }
+
+    /**
+     * 借款人认证积分计算：
+     * 基本信息完整 30 + 身份证材料(idCard1/idCard2) 30 + 车辆材料(car) 30 + 房产材料(house) 100
+     */
+    private int calcBorrowerScore(Long borrowerId) {
+        Borrower borrower = this.getById(borrowerId);
+        int score = 0;
+        if (borrower != null) {
+            // 基本信息：年龄/学历/行业/月收入/还款来源 齐全
+            if (borrower.getAge() != null && borrower.getEducation() != null
+                    && borrower.getIndustry() != null && borrower.getIncome() != null
+                    && borrower.getReturnSource() != null) {
+                score += 30;
+            }
+            // 材料类：按附件 image_type 加分
+            List<BorrowerAttach> attaches = borrowerAttachMapper.selectList(
+                    new LambdaQueryWrapper<BorrowerAttach>().eq(BorrowerAttach::getBorrowerId, borrowerId));
+            boolean idCardOk = false, carOk = false, houseOk = false;
+            if (attaches != null) {
+                for (BorrowerAttach attach : attaches) {
+                    String type = attach.getImageType();
+                    if ("idCard1".equals(type) || "idCard2".equals(type)) {
+                        idCardOk = true;
+                    } else if ("car".equals(type)) {
+                        carOk = true;
+                    } else if ("house".equals(type)) {
+                        houseOk = true;
+                    }
+                }
+            }
+            if (idCardOk) {
+                score += 30;
+            }
+            if (carOk) {
+                score += 30;
+            }
+            if (houseOk) {
+                score += 100;
+            }
+        }
+        return score;
     }
 
     /**

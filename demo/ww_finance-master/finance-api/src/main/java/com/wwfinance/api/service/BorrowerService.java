@@ -33,6 +33,8 @@ public interface BorrowerService extends IService<Borrower> {
 
     /**
      * 管理后台：审核借款人（auditStatus：1通过 2拒绝）
+     *
+     * @return 审批通过时本次回写的积分（拒绝或无需加分返回 0）
      */
-    void auditByAdmin(Long id, Integer auditStatus, String remark);
+    int auditByAdmin(Long id, Integer auditStatus, String remark);
 }

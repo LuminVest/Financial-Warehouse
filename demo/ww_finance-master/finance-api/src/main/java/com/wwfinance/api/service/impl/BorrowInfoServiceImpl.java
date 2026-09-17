@@ -90,10 +90,15 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
     }
 
     /**
-     * 提交借款申请：补充 userId，状态置为「审核中」，保存
+     * 提交借款申请：校验可借额度 → 补充 userId，状态置为「审核中」，保存
      */
     @Override
     public void saveBorrowInfo(BorrowInfo borrowInfo, Long userId) {
+        // 校验可借额度：借款人认证通过后按收入档位映射（未认证通过额度为 0）
+        BigDecimal limit = getBorrowAmount(userId);
+        if (borrowInfo.getAmount() == null || borrowInfo.getAmount().compareTo(limit) > 0) {
+            throw new BusinessException("借款金额超过可借额度 " + limit + " 元");
+        }
         borrowInfo.setUserId(userId);
         borrowInfo.setStatus(BorrowInfoStatusEnum.CHECK_RUN.getStatus()); // 1 审核中
         this.save(borrowInfo);

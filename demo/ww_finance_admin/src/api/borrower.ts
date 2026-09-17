@@ -31,7 +31,12 @@ export function getBorrowerList(params: BorrowerQuery = {}): Promise<PageResult<
 
 // 审核借款人（通过/拒绝）
 // 完整路径：PUT /admin/core/borrower/{id}/audit
-export function auditBorrower(id: number, auditStatus: number, remark?: string): Promise<null> {
+// 返回 data.score：审批通过时本次回写的积分
+export function auditBorrower(
+  id: number,
+  auditStatus: number,
+  remark?: string,
+): Promise<{ data?: { score?: number } }> {
   return request({
     url: `/borrower/${id}/audit`,
     method: 'put',

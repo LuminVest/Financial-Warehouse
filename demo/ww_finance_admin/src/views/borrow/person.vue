@@ -70,8 +70,13 @@ function openAuditDialog(row: Borrower) {
 async function submitAudit() {
   if (!auditRow.value) return
   try {
-    await auditBorrower(auditRow.value.id, auditForm.auditStatus, auditForm.remark)
-    ElMessage.success(auditForm.auditStatus === 1 ? '审核通过' : '已拒绝')
+    const res = await auditBorrower(auditRow.value.id, auditForm.auditStatus, auditForm.remark)
+    const score = res?.data?.score ?? 0
+    ElMessage.success(
+      auditForm.auditStatus === 1
+        ? score > 0 ? `审核通过，本次回写积分 ${score}` : '审核通过'
+        : '已拒绝',
+    )
     auditDialogVisible.value = false
     fetchList()
   } catch {

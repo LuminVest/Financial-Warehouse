@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -49,7 +50,9 @@ public class AdminBorrowerController {
             @RequestBody Map<String, Object> body) {
         Integer auditStatus = body.get("auditStatus") == null ? null : Integer.valueOf(String.valueOf(body.get("auditStatus")));
         String remark = body.get("remark") == null ? null : String.valueOf(body.get("remark"));
-        borrowerService.auditByAdmin(id, auditStatus, remark);
-        return new PccAjaxResult(200, "审核完成");
+        int score = borrowerService.auditByAdmin(id, auditStatus, remark);
+        Map<String, Object> data = new HashMap<>();
+        data.put("score", score);
+        return new PccAjaxResult(200, "审核完成" + (score > 0 ? "，本次回写积分 " + score : ""), data);
     }
 }
