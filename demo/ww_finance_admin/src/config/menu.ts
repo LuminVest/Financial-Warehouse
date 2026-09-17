@@ -41,6 +41,14 @@ export const menuList: MenuItem[] = [
     ],
   },
   {
+    path: '/transflow',
+    title: '资金流水',
+    icon: 'Coin',
+    children: [
+      { path: '/transflow/list', title: '流水监控', icon: '' },
+    ],
+  },
+  {
     path: '/knowledge',
     title: '知识库管理',
     icon: 'Collection',

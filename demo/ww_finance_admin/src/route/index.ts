@@ -54,6 +54,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '标的列表' },
       },
       {
+        path: 'transflow/list',
+        name: 'TransFlowList',
+        component: () => import('@/views/transflow/list.vue'),
+        meta: { title: '资金流水' },
+      },
+      {
         path: 'knowledge/list',
         name: 'KnowledgeList',
         component: () => import('@/views/knowledge/list.vue'),
