@@ -83,6 +83,12 @@ public class Borrower implements Serializable {
     private Integer industry;
 
     /**
+     * 工作单位
+     */
+    @TableField("employer")
+    private String employer;
+
+    /**
      * 月收入
      */
     @TableField("income")

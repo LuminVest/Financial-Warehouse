@@ -36,6 +36,12 @@ public class BorrowerAdminVO implements Serializable {
     @ApiModelProperty(value = "性别 0-未知 1-男 2-女")
     private Integer gender;
 
+    @ApiModelProperty(value = "年龄")
+    private Integer age;
+
+    @ApiModelProperty(value = "是否结婚 0-否 1-是")
+    private Integer isMarry;
+
     @ApiModelProperty(value = "审核状态 0-待审核 1-审核通过 2-已拒绝")
     private Integer auditStatus;
 

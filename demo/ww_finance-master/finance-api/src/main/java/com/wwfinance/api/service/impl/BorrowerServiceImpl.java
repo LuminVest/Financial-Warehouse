@@ -13,7 +13,9 @@ import com.wwfinance.api.enums.BorrowerStatusEnum;
 import com.wwfinance.common.exception.BusinessException;
 import com.wwfinance.api.mapper.BorrowerAttachMapper;
 import com.wwfinance.api.mapper.BorrowerMapper;
+import com.wwfinance.api.mapper.UserBindMapper;
 import com.wwfinance.api.mapper.UserMapper;
+import com.wwfinance.api.entity.UserBind;
 import com.wwfinance.api.service.BorrowerService;
 import com.wwfinance.api.service.UserIntegralService;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +38,9 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
 
     @Autowired
     private UserMapper userMapper;
+
+    @Autowired
+    private UserBindMapper userBindMapper;
 
     @Autowired
     private UserIntegralService userIntegralService;
@@ -126,7 +131,7 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
     }
 
     @Override
-    public int auditByAdmin(Long id, Integer auditStatus, String remark) {
+    public int auditByAdmin(Long id, Integer auditStatus, String remark, Integer idCardOk, Integer carOk, Integer houseOk) {
         Borrower borrower = this.getById(id);
         if (borrower == null) {
             throw new BusinessException("借款人不存在");
@@ -152,10 +157,10 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
             userMapper.updateById(user);
         }
         // 审批通过 → 积分回写（状态机防重：已是通过状态不再加分）
-        // 积分规则：基本信息 30 + 身份证 30 + 车辆 30 + 房产 100
+        // 积分规则（对齐演示 PDF）：基本信息 30 + 身份证 30 + 车辆 60 + 房产 100
         int score = 0;
         if (needIntegral) {
-            score = calcBorrowerScore(id);
+            score = calcBorrowerScore(id, idCardOk, carOk, houseOk);
             if (score > 0) {
                 userIntegralService.addIntegral(borrower.getUserId(), score, "借款人认证审批通过-" + id);
                 log.info("借款人审批通过积分回写, borrowerId={}, userId={}, score={}", id, borrower.getUserId(), score);
@@ -165,10 +170,15 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
     }
 
     /**
-     * 借款人认证积分计算：
-     * 基本信息完整 30 + 身份证材料(idCard1/idCard2) 30 + 车辆材料(car) 30 + 房产材料(house) 100
+     * 借款人认证积分计算（对齐演示 PDF 审批弹窗）：
+     * 基本信息 30 + 身份证材料(idCard1/idCard2) 30 + 车辆材料(car) 60 + 房产材料(house) 100
+     * idCardOk/carOk/houseOk：管理员在审批弹窗逐项勾选（1 是 / 0 否）；
+     * 三项均为 null 时回退为按已上传附件自动判定（兼容旧调用）。
      */
-    private int calcBorrowerScore(Long borrowerId) {
+    private int calcBorrowerScore(Long borrowerId, Integer idCardOk, Integer carOk, Integer houseOk) {
+        if (idCardOk != null && carOk != null && houseOk != null) {
+            return 30 + (idCardOk == 1 ? 30 : 0) + (carOk == 1 ? 60 : 0) + (houseOk == 1 ? 100 : 0);
+        }
         Borrower borrower = this.getById(borrowerId);
         int score = 0;
         if (borrower != null) {
@@ -181,26 +191,26 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
             // 材料类：按附件 image_type 加分
             List<BorrowerAttach> attaches = borrowerAttachMapper.selectList(
                     new LambdaQueryWrapper<BorrowerAttach>().eq(BorrowerAttach::getBorrowerId, borrowerId));
-            boolean idCardOk = false, carOk = false, houseOk = false;
+            boolean idCard = false, car = false, house = false;
             if (attaches != null) {
                 for (BorrowerAttach attach : attaches) {
                     String type = attach.getImageType();
                     if ("idCard1".equals(type) || "idCard2".equals(type)) {
-                        idCardOk = true;
+                        idCard = true;
                     } else if ("car".equals(type)) {
-                        carOk = true;
+                        car = true;
                     } else if ("house".equals(type)) {
-                        houseOk = true;
+                        house = true;
                     }
                 }
             }
-            if (idCardOk) {
+            if (idCard) {
                 score += 30;
             }
-            if (carOk) {
-                score += 30;
+            if (car) {
+                score += 60;
             }
-            if (houseOk) {
+            if (house) {
                 score += 100;
             }
         }
@@ -217,7 +227,11 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
         vo.setRealName(borrower.getName());
         vo.setIdCard(borrower.getIdCard());
         vo.setPhone(borrower.getMobile());
-        vo.setGender(borrower.getSex());
+        // 性别：数据库 0女/1男 → 前端 1男/2女/0未知
+        Integer sex = borrower.getSex();
+        vo.setGender(sex == null ? 0 : (sex == 1 ? 1 : 2));
+        vo.setAge(borrower.getAge());
+        vo.setIsMarry(borrower.getIsMarry());
         // 后端状态 → 前端审核状态
         Integer status = borrower.getStatus();
         if (status != null && status == 2) {
@@ -231,8 +245,27 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
         vo.setCreditLimit(0);
         vo.setUsedLimit(0);
         vo.setBankCard("");
-        vo.setEmployer("");
-        vo.setMonthlyIncome(0);
+        // 工作单位：borrower.employer（无则返回空）
+        vo.setEmployer(borrower.getEmployer() == null ? "" : borrower.getEmployer());
+        // 月收入/授信额度：按认证收入档位映射（与 getBorrowAmount 口径一致）
+        Integer incomeLevel = borrower.getIncome();
+        if (incomeLevel == null) {
+            vo.setMonthlyIncome(0);
+            vo.setCreditLimit(0);
+        } else {
+            vo.setMonthlyIncome(incomeLevel == 1 ? 3000 : incomeLevel == 2 ? 8000 : incomeLevel == 3 ? 20000 : 40000);
+            vo.setCreditLimit(incomeLevel == 1 ? 5000 : incomeLevel == 2 ? 10000 : incomeLevel == 3 ? 30000 : 50000);
+        }
+        // 绑卡信息：取 user_bind 已绑定记录，银行卡号掩码展示
+        UserBind bind = userBindMapper.selectOne(new LambdaQueryWrapper<UserBind>()
+                .eq(UserBind::getUserId, borrower.getUserId())
+                .eq(UserBind::getStatus, 1)
+                .orderByDesc(UserBind::getId)
+                .last("limit 1"));
+        if (bind != null && bind.getBankNo() != null && bind.getBankNo().length() >= 8) {
+            String no = bind.getBankNo();
+            vo.setBankCard(no.substring(0, 6) + "****" + no.substring(no.length() - 4));
+        }
         vo.setCreateTime(borrower.getCreateTime());
         vo.setAuditTime(borrower.getUpdateTime());
         vo.setRemark("");

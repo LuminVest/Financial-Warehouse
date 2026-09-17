@@ -43,6 +43,11 @@ public class MyWebConfig  implements WebMvcConfigurer {
                         "/api/core/lendItem/notify",            // 投资异步回调（第三方托管平台回调无需登录）
                         "/api/user/lendReturn/notifyUrl",       // 还款异步回调（第三方托管平台回调无需登录）
                         "/api/user/account/notifyWithdraw",     // 提现异步回调（第三方托管平台回调无需登录）
+                        // 标的公开浏览（未登录可看首页/投资列表/详情/收益计算/投资记录）
+                        "/api/core/lend/list",
+                        "/api/core/lend/show/**",
+                        "/api/core/lend/getInterestCount/**",
+                        "/api/core/lendItem/list/**",
                         "/admin/core/user/login",               // 后台登录（预留）
                         "/admin/core/login",                    // 管理员登录（ww_finance_admin 前端）
                         "/admin/core/logout",                   // 退出登录（幂等，无需登录态）

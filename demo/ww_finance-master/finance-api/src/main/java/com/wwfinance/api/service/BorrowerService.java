@@ -36,5 +36,5 @@ public interface BorrowerService extends IService<Borrower> {
      *
      * @return 审批通过时本次回写的积分（拒绝或无需加分返回 0）
      */
-    int auditByAdmin(Long id, Integer auditStatus, String remark);
+    int auditByAdmin(Long id, Integer auditStatus, String remark, Integer idCardOk, Integer carOk, Integer houseOk);
 }

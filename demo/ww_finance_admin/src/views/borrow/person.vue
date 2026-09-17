@@ -57,20 +57,39 @@ const auditDialogVisible = ref(false)
 const auditRow = ref<Borrower | null>(null)
 const auditForm = reactive({
   auditStatus: 1,
+  idCardOk: 1,
+  carOk: 1,
+  houseOk: 1,
   remark: '',
 })
+
+// 预计可获积分：基本信息 30 + 身份证 30 + 车辆 60 + 房产 100
+const expectScore = ref(0)
+function calcExpectScore() {
+  expectScore.value = 30 + (auditForm.idCardOk === 1 ? 30 : 0) + (auditForm.carOk === 1 ? 60 : 0) + (auditForm.houseOk === 1 ? 100 : 0)
+}
 
 function openAuditDialog(row: Borrower) {
   auditRow.value = row
   auditForm.auditStatus = 1
+  auditForm.idCardOk = 1
+  auditForm.carOk = 1
+  auditForm.houseOk = 1
   auditForm.remark = ''
+  calcExpectScore()
   auditDialogVisible.value = true
 }
 
 async function submitAudit() {
   if (!auditRow.value) return
   try {
-    const res = await auditBorrower(auditRow.value.id, auditForm.auditStatus, auditForm.remark)
+    const res = await auditBorrower(auditRow.value.id, {
+      auditStatus: auditForm.auditStatus,
+      idCardOk: auditForm.idCardOk,
+      carOk: auditForm.carOk,
+      houseOk: auditForm.houseOk,
+      remark: auditForm.remark,
+    })
     const score = res?.data?.score ?? 0
     ElMessage.success(
       auditForm.auditStatus === 1
@@ -149,6 +168,12 @@ onMounted(fetchList)
         <el-table-column label="性别" width="70" align="center">
           <template #default="{ row }">{{ genderText(row.gender) }}</template>
         </el-table-column>
+        <el-table-column label="年龄" width="70" align="center">
+          <template #default="{ row }">{{ row.age ?? '—' }}</template>
+        </el-table-column>
+        <el-table-column label="是否结婚" width="90" align="center">
+          <template #default="{ row }">{{ row.isMarry === 1 ? '是' : row.isMarry === 0 ? '否' : '—' }}</template>
+        </el-table-column>
         <el-table-column label="月收入" min-width="110" align="center">
           <template #default="{ row }">¥{{ row.monthlyIncome.toLocaleString() }}</template>
         </el-table-column>
@@ -186,27 +211,52 @@ onMounted(fetchList)
     </el-card>
 
     <!-- 审核弹窗 -->
-    <el-dialog v-model="auditDialogVisible" title="借款人审核" width="440px" :close-on-click-modal="false">
-      <el-form :model="auditForm" label-width="80px">
+    <el-dialog v-model="auditDialogVisible" title="审批信息" width="460px" :close-on-click-modal="false">
+      <el-form :model="auditForm" label-width="150px">
         <el-form-item label="借款人">
           <span>{{ auditRow?.realName }}（{{ auditRow?.phone }}）</span>
         </el-form-item>
-        <el-form-item label="月收入">
-          <span>¥{{ auditRow?.monthlyIncome.toLocaleString() }}</span>
-        </el-form-item>
-        <el-form-item label="审核结果">
+        <el-form-item label="是否通过">
           <el-radio-group v-model="auditForm.auditStatus">
             <el-radio :value="1">通过</el-radio>
-            <el-radio :value="2">拒绝</el-radio>
+            <el-radio :value="2">不通过</el-radio>
           </el-radio-group>
+        </el-form-item>
+        <el-form-item label="基本信息积分">
+          <span>30</span>
+          <span style="color: #999; font-size: 12px; margin-left: 8px">可获取数30至100积分</span>
+        </el-form-item>
+        <el-form-item label="身份证信息是否正确">
+          <el-radio-group v-model="auditForm.idCardOk">
+            <el-radio :value="1">是</el-radio>
+            <el-radio :value="0">否</el-radio>
+          </el-radio-group>
+          <span style="color: #999; font-size: 12px; margin-left: 8px">可获得积分 30 积分</span>
+        </el-form-item>
+        <el-form-item label="车辆信息是否正确">
+          <el-radio-group v-model="auditForm.carOk">
+            <el-radio :value="1">是</el-radio>
+            <el-radio :value="0">否</el-radio>
+          </el-radio-group>
+          <span style="color: #999; font-size: 12px; margin-left: 8px">可获得积分 60 积分</span>
+        </el-form-item>
+        <el-form-item label="房产信息是否正确">
+          <el-radio-group v-model="auditForm.houseOk">
+            <el-radio :value="1">是</el-radio>
+            <el-radio :value="0">否</el-radio>
+          </el-radio-group>
+          <span style="color: #999; font-size: 12px; margin-left: 8px">可获得积分 100 积分</span>
+        </el-form-item>
+        <el-form-item v-if="auditForm.auditStatus === 1" label="预计可获积分">
+          <span style="color: #e8421f; font-weight: 600">{{ expectScore }} 积分</span>
         </el-form-item>
         <el-form-item label="审核备注">
           <el-input v-model="auditForm.remark" type="textarea" :rows="2" placeholder="备注信息（选填）" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="auditDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitAudit">确定</el-button>
+        <el-button @click="auditDialogVisible = false">返回列表</el-button>
+        <el-button type="primary" @click="submitAudit">提交审批</el-button>
       </template>
     </el-dialog>
 
@@ -217,13 +267,13 @@ onMounted(fetchList)
         <el-descriptions-item label="会员ID">{{ detailData.memberId }}</el-descriptions-item>
         <el-descriptions-item label="真实姓名">{{ detailData.realName }}</el-descriptions-item>
         <el-descriptions-item label="性别">{{ genderText(detailData.gender) }}</el-descriptions-item>
+        <el-descriptions-item label="年龄">{{ detailData.age ?? '—' }}</el-descriptions-item>
+        <el-descriptions-item label="是否结婚">{{ detailData.isMarry === 1 ? '是' : detailData.isMarry === 0 ? '否' : '—' }}</el-descriptions-item>
         <el-descriptions-item label="身份证号">{{ detailData.idCard }}</el-descriptions-item>
         <el-descriptions-item label="手机号">{{ detailData.phone }}</el-descriptions-item>
-        <el-descriptions-item label="工作单位">{{ detailData.employer }}</el-descriptions-item>
         <el-descriptions-item label="月收入">¥{{ detailData.monthlyIncome.toLocaleString() }}</el-descriptions-item>
         <el-descriptions-item label="授信额度">¥{{ detailData.creditLimit.toLocaleString() }}</el-descriptions-item>
         <el-descriptions-item label="已用额度">¥{{ detailData.usedLimit.toLocaleString() }}</el-descriptions-item>
-        <el-descriptions-item label="银行卡">{{ detailData.bankCard }}</el-descriptions-item>
         <el-descriptions-item label="审核状态">
           <el-tag :type="auditMap[detailData.auditStatus]?.type as string">
             {{ auditMap[detailData.auditStatus]?.text }}

@@ -38,6 +38,11 @@ public class BorrowerDTO {
     private Integer industry;
 
     /**
+     * 工作单位
+     */
+    private String employer;
+
+    /**
      * 月收入
      */
     private Integer income;

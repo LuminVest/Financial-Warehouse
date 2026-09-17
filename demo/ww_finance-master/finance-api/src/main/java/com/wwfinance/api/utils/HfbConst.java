@@ -22,7 +22,7 @@ public class HfbConst {
     // 用户绑定异步回调
     public static final String USERBIND_NOTIFY_URL = "http://localhost:8990/api/core/userBind/notify";
     // 用户绑定同步回调
-    public static final String USERBIND_RETURN_URL = "http://localhost:5173/#/bind/return";
+    public static final String USERBIND_RETURN_URL = "http://localhost:5174/#/bind/return";
 
     /**
      * 充值
@@ -32,7 +32,7 @@ public class HfbConst {
     // 充值异步回调
     public static final String RECHARGE_NOTIFY_URL = "http://localhost:8990/api/core/userAccount/notify";
     // 充值同步回调
-    public static final String RECHARGE_RETURN_URL = "http://localhost:5173/#/charge/return";
+    public static final String RECHARGE_RETURN_URL = "http://localhost:5174/#/charge/return";
 
     /**
      * 投标
@@ -42,7 +42,7 @@ public class HfbConst {
     // 投标异步回调
     public static final String INVEST_NOTIFY_URL = "http://localhost:8990/api/core/lendItem/notify";
     // 投标同步回调
-    public static final String INVEST_RETURN_URL = "http://localhost:5173/#/invest/return";
+    public static final String INVEST_RETURN_URL = "http://localhost:5174/#/invest/return";
 
     /**
      * 放款
@@ -57,7 +57,7 @@ public class HfbConst {
     // 提现异步回调
     public static final String WITHDRAW_NOTIFY_URL = "http://localhost:8990/api/user/account/notifyWithdraw";
     // 提现同步回调
-    public static final String WITHDRAW_RETURN_URL = "http://localhost:5173/#/withdraw/return";
+    public static final String WITHDRAW_RETURN_URL = "http://localhost:5174/#/withdraw/return";
 
     /**
      * 还款扣款
@@ -67,5 +67,5 @@ public class HfbConst {
     // 还款扣款异步回调
     public static final String BORROW_RETURN_NOTIFY_URL = "http://localhost:8990/api/user/lendReturn/notifyUrl";
     // 还款扣款同步回调
-    public static final String BORROW_RETURN_RETURN_URL = "http://localhost:5173/#/borrowReturn/return";
+    public static final String BORROW_RETURN_RETURN_URL = "http://localhost:5174/#/borrowReturn/return";
 }

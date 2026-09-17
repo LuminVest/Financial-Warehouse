@@ -47,6 +47,8 @@ export interface Borrower {
   idCard: string
   phone: string
   gender: number
+  age: number
+  isMarry: number // 0-否 1-是
   auditStatus: number // 0-待审核 1-审核通过 2-已拒绝
   creditLimit: number // 授信额度
   usedLimit: number // 已用额度
@@ -59,9 +61,9 @@ export interface Borrower {
 }
 
 export const mockBorrowers: Borrower[] = [
-  { id: 1, memberId: 1, realName: '张三', idCard: '110101199001011234', phone: '13800138001', gender: 1, auditStatus: 1, creditLimit: 100000, usedLimit: 20000, bankCard: '6222 02** **** 1234', employer: '腾讯科技', monthlyIncome: 25000, createTime: '2024-05-10 11:00', auditTime: '2024-05-12 09:30', remark: '信用良好' },
-  { id: 2, memberId: 2, realName: '李四', idCard: '310101199505056789', phone: '13800138002', gender: 1, auditStatus: 2, creditLimit: 0, usedLimit: 0, bankCard: '6225 75** **** 5678', employer: '个体经营', monthlyIncome: 8000, createTime: '2024-06-15 16:20', auditTime: '2024-06-18 10:00', remark: '收入不稳定，已拒绝' },
-  { id: 3, memberId: 4, realName: '赵六', idCard: '510101198812124567', phone: '13900139001', gender: 1, auditStatus: 0, creditLimit: 0, usedLimit: 0, bankCard: '6217 00** **** 9012', employer: '美团外卖', monthlyIncome: 12000, createTime: '2024-09-05 14:00', auditTime: '', remark: '待审核' },
+  { id: 1, memberId: 1, realName: '张三', idCard: '110101199001011234', phone: '13800138001', gender: 1, age: 35, isMarry: 1, auditStatus: 1, creditLimit: 100000, usedLimit: 20000, bankCard: '6222 02** **** 1234', employer: '腾讯科技', monthlyIncome: 25000, createTime: '2024-05-10 11:00', auditTime: '2024-05-12 09:30', remark: '信用良好' },
+  { id: 2, memberId: 2, realName: '李四', idCard: '310101199505056789', phone: '13800138002', gender: 1, age: 30, isMarry: 1, auditStatus: 2, creditLimit: 0, usedLimit: 0, bankCard: '6225 75** **** 5678', employer: '个体经营', monthlyIncome: 8000, createTime: '2024-06-15 16:20', auditTime: '2024-06-18 10:00', remark: '收入不稳定，已拒绝' },
+  { id: 3, memberId: 4, realName: '赵六', idCard: '510101198812124567', phone: '13900139001', gender: 1, age: 37, isMarry: 0, auditStatus: 0, creditLimit: 0, usedLimit: 0, bankCard: '6217 00** **** 9012', employer: '美团外卖', monthlyIncome: 12000, createTime: '2024-09-05 14:00', auditTime: '', remark: '待审核' },
 ]
 
 export interface BorrowRecord {

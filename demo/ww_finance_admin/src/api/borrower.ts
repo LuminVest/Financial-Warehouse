@@ -29,17 +29,24 @@ export function getBorrowerList(params: BorrowerQuery = {}): Promise<PageResult<
   })
 }
 
-// 审核借款人（通过/拒绝）
+// 审核借款人（通过/拒绝，逐项积分判定）
 // 完整路径：PUT /admin/core/borrower/{id}/audit
 // 返回 data.score：审批通过时本次回写的积分
+export interface AuditBorrowerBody {
+  auditStatus: number // 1-通过 2-拒绝
+  idCardOk?: number // 身份证是否正确 1/0
+  carOk?: number // 车辆是否正确 1/0
+  houseOk?: number // 房产是否正确 1/0
+  remark?: string
+}
+
 export function auditBorrower(
   id: number,
-  auditStatus: number,
-  remark?: string,
+  body: AuditBorrowerBody,
 ): Promise<{ data?: { score?: number } }> {
   return request({
     url: `/borrower/${id}/audit`,
     method: 'put',
-    data: { auditStatus, remark },
+    data: body,
   })
 }

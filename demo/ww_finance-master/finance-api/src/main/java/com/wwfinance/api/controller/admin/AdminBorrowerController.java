@@ -46,11 +46,14 @@ public class AdminBorrowerController {
     @PutMapping("/{id}/audit")
     public PccAjaxResult audit(
             @ApiParam(value = "借款人记录id", required = true) @PathVariable Long id,
-            @ApiParam(value = "审核参数 {auditStatus: 1通过 2拒绝, remark?}", required = true)
+            @ApiParam(value = "审核参数 {auditStatus: 1通过 2拒绝, remark?, idCardOk? 0/1, carOk? 0/1, houseOk? 0/1}", required = true)
             @RequestBody Map<String, Object> body) {
         Integer auditStatus = body.get("auditStatus") == null ? null : Integer.valueOf(String.valueOf(body.get("auditStatus")));
         String remark = body.get("remark") == null ? null : String.valueOf(body.get("remark"));
-        int score = borrowerService.auditByAdmin(id, auditStatus, remark);
+        Integer idCardOk = body.get("idCardOk") == null ? null : Integer.valueOf(String.valueOf(body.get("idCardOk")));
+        Integer carOk = body.get("carOk") == null ? null : Integer.valueOf(String.valueOf(body.get("carOk")));
+        Integer houseOk = body.get("houseOk") == null ? null : Integer.valueOf(String.valueOf(body.get("houseOk")));
+        int score = borrowerService.auditByAdmin(id, auditStatus, remark, idCardOk, carOk, houseOk);
         Map<String, Object> data = new HashMap<>();
         data.put("score", score);
         return new PccAjaxResult(200, "审核完成" + (score > 0 ? "，本次回写积分 " + score : ""), data);
