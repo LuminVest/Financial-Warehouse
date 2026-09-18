@@ -64,7 +64,7 @@ function doLogout() {
         // 后端登失败也不阻碍前端退出
       }
       // 清 cookie token
-      document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'
+      document.cookie = 'admin_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'
       localStorage.removeItem('username')
       ElMessage.success('已退出登录')
       router.push('/login')

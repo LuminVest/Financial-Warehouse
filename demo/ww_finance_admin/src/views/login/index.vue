@@ -29,10 +29,10 @@ const MOCK_PASS = import.meta.env.VITE_MOCK_ADMIN_PASSWORD || '123456'
 // 页面底部提示文字（debug 模式显示默认账号）
 const debugTip = DEV_MOCK ? `调试模式 · 默认账号 ${MOCK_USER} / ${MOCK_PASS}` : ''
 
-// 设置 cookie（和前台 ww-front 保持一致）
+// 设置 cookie（管理端独立 cookie 名，避免与用户端 localhost 串台）
 function setTokenCookie(token: string) {
   // 会话级 cookie：不设 expires，浏览器关闭即失效，下次打开需重新登录
-  document.cookie = `token=${encodeURIComponent(token)}; path=/`
+  document.cookie = `admin_token=${encodeURIComponent(token)}; path=/`
 }
 
 // 开发调试模式下，不调后端，直接本地比对

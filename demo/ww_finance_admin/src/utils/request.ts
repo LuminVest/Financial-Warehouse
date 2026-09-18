@@ -9,9 +9,9 @@ export interface ApiResult<T = unknown> {
   message?: string
 }
 
-// 从 cookie 读取 token（和前台 ww-front 保持一致）
+// 从 cookie 读取 token（管理端独立 cookie 名，避免与用户端 localhost 串台）
 function getToken(): string | null {
-  const match = document.cookie.match(/(?:^|;\s*)token=([^;]*)/)
+  const match = document.cookie.match(/(?:^|;\s*)admin_token=([^;]*)/)
   return match ? decodeURIComponent(match[1]) : null
 }
 
@@ -47,7 +47,7 @@ service.interceptors.response.use(
     ElMessage.error(res?.msg || res?.message || '请求失败')
     // 未登录或 token 失效
     if (res?.code === 401) {
-      document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'
+      document.cookie = 'admin_token=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'
       if (!window.location.pathname.startsWith('/login')) {
         window.location.href = '/login'
       }

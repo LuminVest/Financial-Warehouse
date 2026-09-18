@@ -6,7 +6,7 @@ const whiteList = ['/login']
 
 // 从 cookie 读 token
 function getToken(): string | null {
-  const match = document.cookie.match(/(?:^|;\s*)token=([^;]*)/)
+  const match = document.cookie.match(/(?:^|;\s*)admin_token=([^;]*)/)
   return match ? decodeURIComponent(match[1]) : null
 }
 
