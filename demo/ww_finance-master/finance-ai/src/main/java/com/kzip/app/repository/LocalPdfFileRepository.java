@@ -4,7 +4,6 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -64,21 +63,14 @@ public class LocalPdfFileRepository  implements  FileRepository {
                 throw new RuntimeException(e);
             }
         }
-        FileSystemResource vectorResource = new FileSystemResource("chat-pdf.json");
-        if (vectorResource.exists()) {
-            // SimpleVectorStore 支持持久化，启动时从 JSON 重新加载向量数据
-            SimpleVectorStore simpleVectorStore = (SimpleVectorStore) vectorStore;
-            simpleVectorStore.load(vectorResource);
-        }
+        // 向量数据已持久化到 ChromaDB，不再从 chat-pdf.json 加载
     }
 
     @PreDestroy
     private void persistent() {
         try {
             chatFiles.store(new FileWriter("chat-pdf.properties"), LocalDateTime.now().toString());
-            // 进程退出前把 SimpleVectorStore 里的向量数据保存到 JSON，下次启动可恢复
-            SimpleVectorStore simpleVectorStore = (SimpleVectorStore) vectorStore;
-            simpleVectorStore.save(new File("chat-pdf.json"));
+            // 向量数据已持久化到 ChromaDB，退出时无需再保存 JSON
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

@@ -10,9 +10,10 @@ import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chroma.vectorstore.ChromaApi;
+import org.springframework.ai.chroma.vectorstore.ChromaVectorStore;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,11 +21,20 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class CommonConfiguration {
 
+    // 手动构造 ChromaDB 向量库（不依赖 yml 自动绑定，避免 Spring AI 1.1.2
+    // 自动装配把 host:port 拼错导致 "Host is not specified"）。
+    // ChromaDB 由本地 `chroma run --port 8000` 提供。
     @Bean
     public VectorStore vectorStore(EmbeddingModel embeddingModel) {
-        return SimpleVectorStore.builder(embeddingModel).build();
+        ChromaApi chromaApi = ChromaApi.builder()
+                .baseUrl("http://localhost:8000")
+                .build();
+        return ChromaVectorStore.builder(chromaApi, embeddingModel)
+                .collectionName("my_collection")
+                .initializeSchema(true)
+                .initializeImmediately(false) // 启动时不立即校验/建集合，第一次写入时再建，避免空集合启动报错
+                .build();
     }
-
 
 
     // ======================================================================================

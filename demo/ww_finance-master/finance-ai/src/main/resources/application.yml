@@ -1,7 +1,7 @@
 spring:
   ai:
     dashscope:
-      api-key: sk-ws-H.EPYXDML.ereg.MEQCIBnNTDppiYeUvdWedRUYufPP0jBhq-g8Nv8xpdw_EEq7AiANS0OKaprV4QijpqpNySB-W0KgUQNQ3pHooX0XHKKP0w
+      api-key: ${DASHSCOPE_API_KEY}
       chat:
         options:
           model: qwen-turbo
@@ -17,6 +17,17 @@ spring:
       connection-timeout: 60000  # 连接超时：60秒
       read-timeout: 120000      # 读取超时：120秒
       write-timeout: 120000
+    # ChromaDB 向量库（本地 chroma run 起在 8000 端口）
+    vectorstore:
+      chroma:
+        client:
+          host: localhost
+          port: 8000
+          base-url: http://127.0.0.1:8000/
+          tenant-name: SpringAiTenant
+          database-name: SpringAiDatabase
+        collection-name: my_collection
+        initialize-schema: true
   servlet:
     multipart:
       max-file-size: 20MB

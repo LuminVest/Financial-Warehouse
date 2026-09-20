@@ -116,7 +116,11 @@
              spring-ai-model（由 spring-ai-alibaba-starter-dashscope 间接引入），无需也无法引用 spring-ai-core，
              否则 Maven 只能拉到旧版 1.0.0-M6 的 jar，会导致与 1.1.x 其他模块签名冲突，运行期抛 AbstractMethodError。 -->
         <!-- DashScope 向量模型（EmbeddingModel 自动装配，对应 text-embedding-v3） -->
-
+        <!-- ChromaDB 向量库：自动装配 ChromaVectorStore，配置见 application.yml -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-vector-store-chroma</artifactId>
+        </dependency>
     </dependencies>
     <repositories>
         <repository>
