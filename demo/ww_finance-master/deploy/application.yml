@@ -1,0 +1,14 @@
+# ============================================================
+# finance-api 服务器部署配置（放 jar 同目录，自动覆盖 jar 内配置）
+# 作用：数据库改为阿里云 RDS、关闭 Nacos 注册（服务器不装 Nacos）
+# ============================================================
+spring:
+  datasource:
+    url: jdbc:mysql://rm-uf6ry261ghx3995253o.mysql.rds.aliyuncs.com:3306/www_finance?serverTimezone=GMT%2B8&characterEncoding=utf-8
+    username: shangqiuedu
+    password: shangqiuedu_kakdadajeLo90
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+        register-enabled: false
