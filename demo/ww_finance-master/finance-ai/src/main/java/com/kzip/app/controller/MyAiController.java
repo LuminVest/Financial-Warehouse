@@ -88,33 +88,46 @@ public class MyAiController {
     }
 
     /**
-     * 知识库 RAG 问答：从 ChromaDB 检索知识库片段回答，不依赖 PDF 文件
+     * 知识库 RAG 问答：向量检索 topK 最相关片段，拼到 prompt 里
      * GET /ai/knowledge-chat?prompt=xxx&chatId=xxx
      */
     @RequestMapping(value = "/knowledge-chat", produces = "text/html;charset=UTF-8")
     public Flux<String> knowledgeChat(String prompt, String chatId) {
         try {
-            // 直接调 Chroma REST API，把所有知识库内容都拿出来
             org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+
+            // 1. 用 EmbeddingModel 把用户问题转成向量
+            float[] embedding = embeddingModel.embed(prompt);
+            java.util.List<java.util.List<Double>> queryEmbeddings = java.util.Collections.singletonList(
+                    java.util.stream.IntStream.range(0, embedding.length)
+                            .mapToObj(i -> (double) embedding[i])
+                            .collect(java.util.stream.Collectors.toList())
+            );
+
+            // 2. 调 Chroma query 接口，拿 topK=3 个最相关文档
             String collectionId = "08fb2271-bf77-4a84-9d84-8dc7ab030d1c";
-            String getUrl = "http://localhost:8000/api/v2/tenants/SpringAiTenant/databases/SpringAiDatabase/collections/" + collectionId + "/get";
+            String queryUrl = "http://localhost:8000/api/v2/tenants/SpringAiTenant/databases/SpringAiDatabase/collections/" + collectionId + "/query";
 
             java.util.Map<String, Object> body = new java.util.HashMap<>();
-            body.put("limit", 100);
-            body.put("include", java.util.List.of("documents"));
+            body.put("query_embeddings", queryEmbeddings);
+            body.put("n_results", 5);
+            body.put("include", java.util.List.of("documents", "distances"));
 
-            java.util.Map result = restTemplate.postForObject(getUrl, body, java.util.Map.class);
+            java.util.Map result = restTemplate.postForObject(queryUrl, body, java.util.Map.class);
             java.util.List documents = (java.util.List) result.get("documents");
 
             StringBuilder sb = new StringBuilder();
-            if (documents != null) {
-                for (Object doc : documents) {
-                    sb.append(doc.toString()).append("\n\n---\n\n");
+            if (documents != null && !documents.isEmpty()) {
+                java.util.List docList = (java.util.List) documents.get(0);
+                for (int i = 0; i < docList.size(); i++) {
+                    if (i > 0) sb.append("\n\n---\n\n");
+                    sb.append(docList.get(i).toString());
                 }
             }
             String context = sb.toString();
 
-            System.out.println("【RAG 知识库内容】：\n" + context);
+            System.out.println("【RAG 检索到的片段数】：" + (documents == null || documents.isEmpty() ? 0 : ((java.util.List) documents.get(0)).size()));
+            System.out.println("【RAG 检索到的内容】：\n" + context);
 
             if (context.isEmpty()) {
                 return Flux.just("抱歉，这个问题我暂时回答不了。");
