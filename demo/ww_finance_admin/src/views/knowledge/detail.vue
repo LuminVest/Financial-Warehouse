@@ -231,8 +231,7 @@ onMounted(fetchData)
         <el-table-column type="index" label="序号" width="70" align="center" />
         <el-table-column prop="title" label="文档标题" min-width="180">
           <template #default="{ row }">
-            <el-link v-if="row.source === 'text'" type="primary" @click="openContent(row)">{{ row.title }}</el-link>
-            <span v-else>{{ row.title }}</span>
+            <el-link type="primary" @click="openContent(row)">{{ row.title }}</el-link>
           </template>
         </el-table-column>
         <el-table-column label="来源" width="80" align="center">
@@ -259,7 +258,7 @@ onMounted(fetchData)
         <el-table-column prop="createTime" label="添加时间" min-width="170" />
         <el-table-column label="操作" width="100" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button v-if="row.source === 'text'" type="primary" link @click="openContent(row)">查看</el-button>
+            <el-button type="primary" link @click="openContent(row)">查看</el-button>
             <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>

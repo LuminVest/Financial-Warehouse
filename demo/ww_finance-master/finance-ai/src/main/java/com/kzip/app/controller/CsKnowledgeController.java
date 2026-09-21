@@ -109,13 +109,21 @@ public class CsKnowledgeController {
             // 4. 写入 ChromaDB
             vectorStore.add(chunks);
 
-            // 5. 回调 finance-api 更新状态为就绪（status=1）
+            // 5. 把 PDF 全文拼起来
+            StringBuilder fullText = new StringBuilder();
+            for (Document doc : originalDocs) {
+                fullText.append(doc.getText()).append("\n\n");
+            }
+            String content = fullText.toString().trim();
+
+            // 6. 回调 finance-api 更新状态为就绪（status=1），同时存全文
             try {
                 String callbackUrl = financeApiBase + "/admin/core/knowledge/doc/updateStatus";
                 Map<String, Object> callbackBody = new HashMap<>();
                 callbackBody.put("docId", docId);
                 callbackBody.put("status", 1);
                 callbackBody.put("chunkCount", chunks.size());
+                callbackBody.put("content", content);
                 restTemplate.postForObject(callbackUrl, callbackBody, String.class);
                 System.out.println("已回调 finance-api 更新文档状态为就绪, docId=" + docId);
             } catch (Exception callbackEx) {

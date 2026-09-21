@@ -99,7 +99,8 @@ public class AdminKnowledgeController {
         Long docId = body.get("docId") == null ? null : Long.valueOf(String.valueOf(body.get("docId")));
         Integer status = body.get("status") == null ? null : Integer.valueOf(String.valueOf(body.get("status")));
         Integer chunkCount = body.get("chunkCount") == null ? null : Integer.valueOf(String.valueOf(body.get("chunkCount")));
-        knowledgeDocService.updateStatus(docId, status, chunkCount);
+        String content = str(body.get("content"));
+        knowledgeDocService.updateStatus(docId, status, chunkCount, content);
         return new PccAjaxResult(200, "更新成功");
     }
 

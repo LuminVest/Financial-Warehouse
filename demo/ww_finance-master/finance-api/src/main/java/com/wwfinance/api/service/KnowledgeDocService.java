@@ -23,5 +23,5 @@ public interface KnowledgeDocService extends IService<KnowledgeDoc> {
     void delete(Long id);
 
     /** 更新文档处理状态（AI 服务解析完 PDF 后回调） */
-    void updateStatus(Long docId, Integer status, Integer chunkCount);
+    void updateStatus(Long docId, Integer status, Integer chunkCount, String content);
 }

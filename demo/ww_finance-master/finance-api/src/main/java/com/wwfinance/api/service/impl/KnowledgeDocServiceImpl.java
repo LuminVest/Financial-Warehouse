@@ -112,13 +112,16 @@ public class KnowledgeDocServiceImpl extends ServiceImpl<KnowledgeDocMapper, Kno
     }
 
     @Override
-    public void updateStatus(Long docId, Integer status, Integer chunkCount) {
+    public void updateStatus(Long docId, Integer status, Integer chunkCount, String content) {
         KnowledgeDoc doc = getById(docId);
         if (doc == null) {
             log.warn("更新状态失败，文档不存在: docId={}", docId);
             return;
         }
         doc.setStatus(status);
+        if (content != null && !content.isEmpty()) {
+            doc.setContent(content);
+        }
         if (chunkCount != null) {
             doc.setChunkCount(chunkCount);
             // 更新知识库总 chunk 数
@@ -130,7 +133,8 @@ public class KnowledgeDocServiceImpl extends ServiceImpl<KnowledgeDocMapper, Kno
             }
         }
         updateById(doc);
-        log.info("文档状态更新成功, docId={}, status={}, chunkCount={}", docId, status, chunkCount);
+        log.info("文档状态更新成功, docId={}, status={}, chunkCount={}, content长度={}",
+                docId, status, chunkCount, content == null ? 0 : content.length());
     }
 
     /** 知识库文档数/分块数累加 */
