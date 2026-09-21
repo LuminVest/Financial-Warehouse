@@ -2,12 +2,14 @@ package com.kzip.app.controller;
 
 import org.springframework.ai.document.Document;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
+import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 知识库文档入库接口：
@@ -39,6 +41,13 @@ public class CsKnowledgeController {
             @RequestParam(required = false) String docId,
             @RequestParam(required = false, defaultValue = "default") String type) {
 
+        // finance-api 调过来时做了 URL 编码，这里解码还原原文
+        try {
+            content = java.net.URLDecoder.decode(content, "UTF-8");
+        } catch (Exception e) {
+            // 解码失败就用原始 content
+        }
+
         // 1. 原始文本包装成 Document
         Map<String, Object> metadata = new HashMap<>();
         if (docId != null) {
@@ -59,5 +68,33 @@ public class CsKnowledgeController {
         data.put("chunkCount", chunks.size());
         data.put("type", type);
         return Result.success(data);
+    }
+
+    /**
+     * 测试检索接口：直接看 Chroma 里检索到了哪些 chunk
+     * GET /ai/cs/search?query=xxx&topK=5
+     */
+    @RequestMapping(value = "/search", method = {RequestMethod.GET, RequestMethod.POST})
+    public Result<List<Map<String, Object>>> search(
+            @RequestParam String query,
+            @RequestParam(required = false, defaultValue = "5") int topK) {
+
+        List<Document> docs = vectorStore.similaritySearch(
+                SearchRequest.builder()
+                        .query(query)
+                        .topK(topK)
+                        .similarityThreshold(0.0)
+                        .build()
+        );
+
+        List<Map<String, Object>> result = docs.stream().map(doc -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", doc.getId());
+            m.put("text", doc.getText().substring(0, Math.min(100, doc.getText().length())) + "...");
+            m.put("metadata", doc.getMetadata());
+            return m;
+        }).collect(Collectors.toList());
+
+        return Result.success(result);
     }
 }

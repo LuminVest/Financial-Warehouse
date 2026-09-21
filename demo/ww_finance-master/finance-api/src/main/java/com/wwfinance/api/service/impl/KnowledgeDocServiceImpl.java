@@ -7,19 +7,30 @@ import com.wwfinance.api.entity.KnowledgeDoc;
 import com.wwfinance.api.mapper.KnowledgeBaseMapper;
 import com.wwfinance.api.mapper.KnowledgeDocMapper;
 import com.wwfinance.api.service.KnowledgeDocService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 知识库文档服务实现
  */
+@Slf4j
 @Service
 public class KnowledgeDocServiceImpl extends ServiceImpl<KnowledgeDocMapper, KnowledgeDoc> implements KnowledgeDocService {
 
     @Autowired
     private KnowledgeBaseMapper knowledgeBaseMapper;
+
+    @Value("${finance-ai.base-url:http://localhost:8089}")
+    private String financeAiBaseUrl;
+
+    private final RestTemplate restTemplate = new RestTemplate();
 
     @Override
     public List<KnowledgeDoc> listByKbId(Long kbId) {
@@ -43,6 +54,18 @@ public class KnowledgeDocServiceImpl extends ServiceImpl<KnowledgeDocMapper, Kno
                 .setStatus(1);
         save(doc);
         bumpCount(kbId, 1, chunkCount);
+
+        // 同步到 finance-ai 向量化入库
+        try {
+            String url = financeAiBaseUrl + "/ai/cs/knowledge?content="
+                    + java.net.URLEncoder.encode(content, "UTF-8")
+                    + "&docId=" + doc.getId()
+                    + "&type=target";
+            Map result = restTemplate.getForObject(url, Map.class);
+            log.info("知识库文档向量化入库成功, docId={}, result={}", doc.getId(), result);
+        } catch (Exception e) {
+            log.error("知识库文档向量化入库失败, docId={}", doc.getId(), e);
+        }
     }
 
     @Override

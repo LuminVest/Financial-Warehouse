@@ -30,7 +30,7 @@ public class CommonConfiguration {
                 .baseUrl("http://localhost:8000")
                 .build();
         return ChromaVectorStore.builder(chromaApi, embeddingModel)
-                .collectionName("my_collection")
+                .collectionName("my_collection_v2")
                 .initializeSchema(true)
                 .initializeImmediately(false) // 启动时不立即校验/建集合，第一次写入时再建，避免空集合启动报错
                 .build();
