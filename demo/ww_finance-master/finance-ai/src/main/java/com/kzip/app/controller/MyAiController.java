@@ -76,4 +76,17 @@ public class MyAiController {
                 .stream()
                 .content();
     }
+
+    /**
+     * 知识库 RAG 问答：从 ChromaDB 检索知识库片段回答，不依赖 PDF 文件
+     * GET /ai/knowledge-chat?prompt=xxx&chatId=xxx
+     */
+    @RequestMapping(value = "/knowledge-chat", produces = "text/html;charset=UTF-8")
+    public Flux<String> knowledgeChat(String prompt, String chatId) {
+        return pdfChatClient
+                .prompt(prompt)
+                .advisors(a -> a.param(CONVERSATION_ID, chatId))
+                .stream()
+                .content();
+    }
 }
