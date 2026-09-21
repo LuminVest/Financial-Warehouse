@@ -2,6 +2,8 @@ package com.kzip.app.controller;
 
 import org.springframework.ai.document.Document;
 import org.springframework.ai.reader.pdf.PagePdfDocumentReader;
+import org.springframework.ai.reader.pdf.ParagraphPdfDocumentReader;
+import org.springframework.ai.reader.pdf.config.PdfDocumentReaderConfig;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -90,9 +92,15 @@ public class CsKnowledgeController {
         RestTemplate restTemplate = new RestTemplate();
 
         try {
-            // 1. 用 PagePdfDocumentReader 读取 PDF
+            // 1. 按老师推荐，用 ParagraphPdfDocumentReader 按段落切割
+            // 前提：PDF 是纯文本格式，且有目录（TOC）
             InputStream inputStream = file.getInputStream();
-            PagePdfDocumentReader pdfReader = new PagePdfDocumentReader(new InputStreamResource(inputStream));
+            PdfDocumentReaderConfig config = PdfDocumentReaderConfig.builder()
+                    .withPageTopMargin(0)
+                    .withPageBottomMargin(0)
+                    .withPagesPerDocument(1)
+                    .build();
+            ParagraphPdfDocumentReader pdfReader = new ParagraphPdfDocumentReader(new InputStreamResource(inputStream), config);
             List<Document> originalDocs = pdfReader.get();
 
             // 2. 加元数据
@@ -103,11 +111,15 @@ public class CsKnowledgeController {
                 doc.getMetadata().put("fileName", file.getOriginalFilename());
             }
 
-            // 3. TokenTextSplitter 切块
+            // 3. TokenTextSplitter 二次切块
             List<Document> chunks = textSplitter.apply(originalDocs);
 
-            // 4. 写入 ChromaDB
-            vectorStore.add(chunks);
+            // 4. 分批写入 ChromaDB（DashScope embedding 单次 batch 不超过 10）
+            int batchSize = 10;
+            for (int i = 0; i < chunks.size(); i += batchSize) {
+                List<Document> batch = chunks.subList(i, Math.min(i + batchSize, chunks.size()));
+                vectorStore.add(batch);
+            }
 
             // 5. 把 PDF 全文拼起来
             StringBuilder fullText = new StringBuilder();

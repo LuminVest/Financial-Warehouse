@@ -137,11 +137,17 @@ public class MyAiController {
                     + "如果知识库中没有相关信息，直接说\"抱歉，这个问题我暂时回答不了\"，绝对不要自己编造答案。\n\n"
                     + "===== 知识库内容开始 =====\n" + context + "===== 知识库内容结束 =====";
 
-            return chatClient
+            var request = chatClient
                     .prompt()
                     .system(systemPrompt)
-                    .user(prompt)
-                    .advisors(a -> a.param(CONVERSATION_ID, chatId))
+                    .user(prompt);
+
+            // 只有传了 chatId 才加对话记忆参数，否则不加
+            if (chatId != null && !chatId.isEmpty()) {
+                request = request.advisors(a -> a.param(CONVERSATION_ID, chatId));
+            }
+
+            return request
                     .stream()
                     .content();
         } catch (Exception e) {
