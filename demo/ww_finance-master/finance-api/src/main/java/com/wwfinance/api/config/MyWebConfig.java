@@ -51,6 +51,7 @@ public class MyWebConfig  implements WebMvcConfigurer {
                         "/admin/core/user/login",               // 后台登录（预留）
                         "/admin/core/login",                    // 管理员登录（ww_finance_admin 前端）
                         "/admin/core/logout",                   // 退出登录（幂等，无需登录态）
+                        "/admin/core/knowledge/doc/updateStatus",  // AI 服务回调更新文档状态（无需登录）
                         "/doc.html",
                         "/webjars/**",
                         "/swagger-resources/**",

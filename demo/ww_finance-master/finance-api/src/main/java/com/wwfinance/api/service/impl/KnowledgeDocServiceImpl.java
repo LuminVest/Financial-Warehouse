@@ -69,7 +69,7 @@ public class KnowledgeDocServiceImpl extends ServiceImpl<KnowledgeDocMapper, Kno
     }
 
     @Override
-    public void addPdf(Long kbId, String title, String fileName, Long fileSize) {
+    public Long addPdf(Long kbId, String title, String fileName, Long fileSize) {
         int chunkCount = (int) Math.ceil(fileSize / 50.0);
         KnowledgeDoc doc = new KnowledgeDoc()
                 .setKbId(kbId)
@@ -82,6 +82,7 @@ public class KnowledgeDocServiceImpl extends ServiceImpl<KnowledgeDocMapper, Kno
                 .setStatus(0); // 处理中（待 AI 服务解析向量化）
         save(doc);
         bumpCount(kbId, 1, chunkCount);
+        return doc.getId();
     }
 
     @Override
@@ -108,6 +109,28 @@ public class KnowledgeDocServiceImpl extends ServiceImpl<KnowledgeDocMapper, Kno
         } catch (Exception e) {
             log.error("知识库文档向量删除失败, docId={}", id, e);
         }
+    }
+
+    @Override
+    public void updateStatus(Long docId, Integer status, Integer chunkCount) {
+        KnowledgeDoc doc = getById(docId);
+        if (doc == null) {
+            log.warn("更新状态失败，文档不存在: docId={}", docId);
+            return;
+        }
+        doc.setStatus(status);
+        if (chunkCount != null) {
+            doc.setChunkCount(chunkCount);
+            // 更新知识库总 chunk 数
+            KnowledgeBase kb = knowledgeBaseMapper.selectById(doc.getKbId());
+            if (kb != null) {
+                // 先减去旧的，再加新的
+                kb.setChunkCount(kb.getChunkCount() - doc.getChunkCount() + chunkCount);
+                knowledgeBaseMapper.updateById(kb);
+            }
+        }
+        updateById(doc);
+        log.info("文档状态更新成功, docId={}, status={}, chunkCount={}", docId, status, chunkCount);
     }
 
     /** 知识库文档数/分块数累加 */

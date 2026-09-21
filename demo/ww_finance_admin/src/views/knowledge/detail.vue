@@ -94,9 +94,12 @@ function closePdfDialog() {
 }
 
 // 模拟文件上传（实际对接时替换为真实上传接口）
+const pdfFile = ref<File | null>(null)
+
 function handleFileChange(file: UploadFile) {
   pdfForm.fileName = file.name
   pdfForm.fileSize = Math.ceil((file.size || 0) / 1024)
+  pdfFile.value = file.raw || null
   if (!pdfForm.title) pdfForm.title = file.name.replace(/\.pdf$/i, '')
 }
 
@@ -104,24 +107,42 @@ async function submitPdf() {
   if (!pdfFormRef.value) return
   await pdfFormRef.value.validate(async (valid) => {
     if (!valid) return
-    if (!pdfForm.fileName) {
+    if (!pdfFile.value) {
       ElMessage.warning('请选择 PDF 文件')
       return
     }
     try {
-      await addKnowledgeDocPdf({
+      // 1. 先存元数据，拿到真正的 docId
+      const docId = await addKnowledgeDocPdf({
         kbId,
         title: pdfForm.title,
         fileName: pdfForm.fileName,
         fileSize: pdfForm.fileSize,
       })
-      ElMessage.success('上传成功，正在处理...')
+
+      // 2. 用真正的 docId 把 PDF 上传给 finance-ai 解析向量化
+      const formData = new FormData()
+      formData.append('file', pdfFile.value)
+      formData.append('docId', String(docId))
+      formData.append('type', 'target')
+
+      const aiRes = await fetch('http://localhost:8089/ai/cs/knowledge/pdf', {
+        method: 'POST',
+        body: formData,
+      })
+      const aiData = await aiRes.json()
+      if (aiData.code !== 200) {
+        ElMessage.error('PDF 解析失败: ' + aiData.msg)
+        return
+      }
+      const chunkCount = aiData.data.chunkCount
+
+      ElMessage.success('上传成功，共 ' + chunkCount + ' 个分块')
       closePdfDialog()
       fetchData()
-      // 2秒后刷新（模拟处理完成）
-      setTimeout(fetchData, 2500)
-    } catch {
-      // error 已由拦截器处理
+    } catch (e) {
+      console.error(e)
+      ElMessage.error('上传失败')
     }
   })
 }

@@ -16,9 +16,12 @@ public interface KnowledgeDocService extends IService<KnowledgeDoc> {
     /** 新增文本文档 */
     void addText(Long kbId, String title, String content);
 
-    /** 新增 PDF 文档（先存元数据，文件解析/向量化后续由 AI 服务完成） */
-    void addPdf(Long kbId, String title, String fileName, Long fileSize);
+    /** 新增 PDF 文档（先存元数据，返回文档ID，文件解析/向量化后续由 AI 服务完成） */
+    Long addPdf(Long kbId, String title, String fileName, Long fileSize);
 
     /** 删除文档（并回退所属知识库的计数） */
     void delete(Long id);
+
+    /** 更新文档处理状态（AI 服务解析完 PDF 后回调） */
+    void updateStatus(Long docId, Integer status, Integer chunkCount);
 }

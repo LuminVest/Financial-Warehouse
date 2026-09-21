@@ -1,12 +1,16 @@
 package com.kzip.app.controller;
 
 import org.springframework.ai.document.Document;
+import org.springframework.ai.reader.pdf.PagePdfDocumentReader;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,6 +73,76 @@ public class CsKnowledgeController {
         data.put("chunkCount", chunks.size());
         data.put("type", type);
         return Result.success(data);
+    }
+
+    /**
+     * 上传 PDF 文件入库：
+     * POST /ai/cs/knowledge/pdf
+     * 参数：file=PDF文件, docId=文档ID, type=文档类型
+     */
+    @RequestMapping(value = "/knowledge/pdf", method = {RequestMethod.POST})
+    public Result<Map<String, Object>> addPdfKnowledge(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam String docId,
+            @RequestParam(required = false, defaultValue = "default") String type) {
+
+        String financeApiBase = "http://localhost:8990";
+        RestTemplate restTemplate = new RestTemplate();
+
+        try {
+            // 1. 用 PagePdfDocumentReader 读取 PDF
+            InputStream inputStream = file.getInputStream();
+            PagePdfDocumentReader pdfReader = new PagePdfDocumentReader(new InputStreamResource(inputStream));
+            List<Document> originalDocs = pdfReader.get();
+
+            // 2. 加元数据
+            for (Document doc : originalDocs) {
+                doc.getMetadata().put("docId", docId);
+                doc.getMetadata().put("type", type);
+                doc.getMetadata().put("source", "knowledge");
+                doc.getMetadata().put("fileName", file.getOriginalFilename());
+            }
+
+            // 3. TokenTextSplitter 切块
+            List<Document> chunks = textSplitter.apply(originalDocs);
+
+            // 4. 写入 ChromaDB
+            vectorStore.add(chunks);
+
+            // 5. 回调 finance-api 更新状态为就绪（status=1）
+            try {
+                String callbackUrl = financeApiBase + "/admin/core/knowledge/doc/updateStatus";
+                Map<String, Object> callbackBody = new HashMap<>();
+                callbackBody.put("docId", docId);
+                callbackBody.put("status", 1);
+                callbackBody.put("chunkCount", chunks.size());
+                restTemplate.postForObject(callbackUrl, callbackBody, String.class);
+                System.out.println("已回调 finance-api 更新文档状态为就绪, docId=" + docId);
+            } catch (Exception callbackEx) {
+                System.err.println("回调 finance-api 更新状态失败: " + callbackEx.getMessage());
+            }
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("chunkCount", chunks.size());
+            data.put("pageCount", originalDocs.size());
+            data.put("type", type);
+            return Result.success(data);
+        } catch (Exception e) {
+            e.printStackTrace();
+
+            // 失败也回调，更新状态为失败（status=2）
+            try {
+                String callbackUrl = financeApiBase + "/admin/core/knowledge/doc/updateStatus";
+                Map<String, Object> callbackBody = new HashMap<>();
+                callbackBody.put("docId", docId);
+                callbackBody.put("status", 2);
+                restTemplate.postForObject(callbackUrl, callbackBody, String.class);
+            } catch (Exception callbackEx) {
+                System.err.println("回调 finance-api 更新失败状态也失败: " + callbackEx.getMessage());
+            }
+
+            return Result.error("PDF 解析失败: " + e.getMessage());
+        }
     }
 
     /**

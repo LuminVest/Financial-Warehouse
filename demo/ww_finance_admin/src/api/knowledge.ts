@@ -49,8 +49,8 @@ export function addKnowledgeDocText(data: { kbId: number; title: string; content
 
 // 添加文档（PDF 类型，先存元数据；文件解析/向量化由 AI 服务后续完成）
 // POST /admin/core/knowledge/doc/pdf
-export function addKnowledgeDocPdf(data: { kbId: number; title: string; fileName: string; fileSize: number }): Promise<null> {
-  return request<null>({ url: '/knowledge/doc/pdf', method: 'post', data })
+export function addKnowledgeDocPdf(data: { kbId: number; title: string; fileName: string; fileSize: number }): Promise<number> {
+  return request<number>({ url: '/knowledge/doc/pdf', method: 'post', data })
 }
 
 // 删除文档

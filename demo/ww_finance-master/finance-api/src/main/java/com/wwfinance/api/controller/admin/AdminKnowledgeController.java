@@ -82,8 +82,8 @@ public class AdminKnowledgeController {
     public PccAjaxResult addPdf(@RequestBody Map<String, Object> body) {
         Long kbId = body.get("kbId") == null ? null : Long.valueOf(String.valueOf(body.get("kbId")));
         Long fileSize = body.get("fileSize") == null ? 0L : Long.valueOf(String.valueOf(body.get("fileSize")));
-        knowledgeDocService.addPdf(kbId, str(body.get("title")), str(body.get("fileName")), fileSize);
-        return new PccAjaxResult(200, "上传成功");
+        Long docId = knowledgeDocService.addPdf(kbId, str(body.get("title")), str(body.get("fileName")), fileSize);
+        return new PccAjaxResult(200, "上传成功", docId);
     }
 
     @ApiOperation("删除文档")
@@ -91,6 +91,16 @@ public class AdminKnowledgeController {
     public PccAjaxResult deleteDoc(@ApiParam(value = "文档id", required = true) @PathVariable Long id) {
         knowledgeDocService.delete(id);
         return new PccAjaxResult(200, "删除成功");
+    }
+
+    @ApiOperation("AI 服务回调更新文档处理状态")
+    @PostMapping("/doc/updateStatus")
+    public PccAjaxResult updateStatus(@RequestBody Map<String, Object> body) {
+        Long docId = body.get("docId") == null ? null : Long.valueOf(String.valueOf(body.get("docId")));
+        Integer status = body.get("status") == null ? null : Integer.valueOf(String.valueOf(body.get("status")));
+        Integer chunkCount = body.get("chunkCount") == null ? null : Integer.valueOf(String.valueOf(body.get("chunkCount")));
+        knowledgeDocService.updateStatus(docId, status, chunkCount);
+        return new PccAjaxResult(200, "更新成功");
     }
 
     private String str(Object v) {
