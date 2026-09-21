@@ -99,6 +99,15 @@ public class KnowledgeDocServiceImpl extends ServiceImpl<KnowledgeDocMapper, Kno
             kb.setChunkCount(Math.max(0, kb.getChunkCount() - doc.getChunkCount()));
             knowledgeBaseMapper.updateById(kb);
         }
+
+        // 同步删除 finance-ai ChromaDB 里的向量
+        try {
+            String url = financeAiBaseUrl + "/ai/cs/delete?docId=" + id;
+            Map result = restTemplate.getForObject(url, Map.class);
+            log.info("知识库文档向量删除成功, docId={}, result={}", id, result);
+        } catch (Exception e) {
+            log.error("知识库文档向量删除失败, docId={}", id, e);
+        }
     }
 
     /** 知识库文档数/分块数累加 */

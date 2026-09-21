@@ -91,8 +91,8 @@ public class CommonConfiguration {
                         new SimpleLoggerAdvisor(),
                         QuestionAnswerAdvisor.builder(vectorStore)
                                 .searchRequest(SearchRequest.builder()
-                                        .similarityThreshold(0.1d)   // 降低阈值，方便短文本命中
-                                        .topK(5)
+                                        .similarityThreshold(0.0d)   // 最低阈值，所有结果都返回
+                                        .topK(10)
                                         .build())
                                 .build()
                 )

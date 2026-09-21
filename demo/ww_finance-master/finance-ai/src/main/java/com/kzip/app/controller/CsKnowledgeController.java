@@ -5,6 +5,7 @@ import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.List;
@@ -96,5 +97,51 @@ public class CsKnowledgeController {
         }).collect(Collectors.toList());
 
         return Result.success(result);
+    }
+
+    /**
+     * 按 docId 删除知识库向量
+     * GET /ai/cs/delete?docId=xxx
+     */
+    @RequestMapping(value = "/delete", method = {RequestMethod.GET, RequestMethod.POST})
+    public Result<Map<String, Object>> deleteByDocId(@RequestParam String docId) {
+        try {
+            // 直接调 Chroma REST API，按 where 条件删除
+            String chromaBase = "http://localhost:8000";
+            String tenant = "SpringAiTenant";
+            String database = "SpringAiDatabase";
+            String collection = "my_collection_v2";
+
+            RestTemplate restTemplate = new RestTemplate();
+
+            // 1. 先拿 collection id
+            String listUrl = chromaBase + "/api/v2/tenants/" + tenant + "/databases/" + database + "/collections";
+            List collections = restTemplate.getForObject(listUrl, List.class);
+            String collectionId = null;
+            for (Object obj : collections) {
+                Map m = (Map) obj;
+                if (collection.equals(m.get("name"))) {
+                    collectionId = (String) m.get("id");
+                    break;
+                }
+            }
+
+            if (collectionId == null) {
+                return Result.error("collection not found");
+            }
+
+            // 2. 按 where 条件删除（POST 方法）
+            String deleteUrl = chromaBase + "/api/v2/tenants/" + tenant + "/databases/" + database + "/collections/" + collectionId + "/delete";
+            Map<String, Object> body = new HashMap<>();
+            body.put("where", Map.of("docId", docId));
+            restTemplate.postForObject(deleteUrl, body, String.class);
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("docId", docId);
+            data.put("status", "deleted");
+            return Result.success(data);
+        } catch (Exception e) {
+            return Result.error("删除失败: " + e.getMessage());
+        }
     }
 }
