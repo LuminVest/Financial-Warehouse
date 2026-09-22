@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getChatSessionList, closeChatSession, deleteChatSession, type ChatSessionQuery } from '@/api/chatRecord'
+import { getChatSessionList, getChatSessionDetail, closeChatSession, deleteChatSession, type ChatSessionQuery } from '@/api/chatRecord'
 import type { ChatSession, ChatMessage } from '@/api/mock'
 
 // ------ 搜索 ------
@@ -17,10 +17,13 @@ const loading = ref(false)
 async function fetchList() {
   loading.value = true
   try {
-    tableData.value = await getChatSessionList({
+    const res: any = await getChatSessionList({
       keyword: searchForm.keyword,
       status: searchForm.status,
+      page: 1,
+      size: 100,
     })
+    tableData.value = res.list || res || []
   } finally {
     loading.value = false
   }
@@ -38,10 +41,17 @@ function handleReset() {
 // ------ 详情弹窗（对话记录） ------
 const detailVisible = ref(false)
 const detailData = ref<ChatSession | null>(null)
+const detailLoading = ref(false)
 
-function openDetail(row: ChatSession) {
-  detailData.value = row
+async function openDetail(row: ChatSession) {
   detailVisible.value = true
+  detailLoading.value = true
+  try {
+    const res: any = await getChatSessionDetail(row.id)
+    detailData.value = { ...row, ...res.session, messages: res.messages || [] } as any
+  } finally {
+    detailLoading.value = false
+  }
 }
 
 // ------ 结束会话 ------
@@ -160,6 +170,7 @@ onMounted(fetchList)
       width="680px"
       :close-on-click-modal="true"
     >
+      <div v-loading="detailLoading">
       <template v-if="detailData">
         <!-- 会话信息 -->
         <div class="session-info">
@@ -191,7 +202,7 @@ onMounted(fetchList)
               <el-tag :type="msgRoleType(msg) as string" size="small" effect="dark">
                 {{ msgRoleTag(msg) }}
               </el-tag>
-              <span class="msg-time">{{ msg.timestamp }}</span>
+              <span class="msg-time">{{ msg.createTime }}</span>
             </div>
             <div class="msg-bubble">
               <pre>{{ msg.content }}</pre>
@@ -199,6 +210,7 @@ onMounted(fetchList)
           </div>
         </div>
       </template>
+      </div>
       <template #footer>
         <el-button @click="detailVisible = false">关闭</el-button>
       </template>

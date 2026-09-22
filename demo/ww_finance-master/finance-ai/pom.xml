@@ -98,6 +98,11 @@
             <groupId>com.alibaba.cloud.ai</groupId>
             <artifactId>spring-ai-alibaba-starter-dashscope</artifactId>
         </dependency>
+        <!-- DeepSeek 对话模型（1.1.x 新坐标：spring-ai-starter-model-deepseek，不是老的 spring-ai-deepseek-spring-boot-starter） -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-deepseek</artifactId>
+        </dependency>
         <!-- PDF 文档读取（PagePdfDocumentReader） -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
@@ -120,6 +125,11 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-vector-store-chroma</artifactId>
+        </dependency>
+        <!-- Redis：用来持久化对话记忆 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
     </dependencies>
     <repositories>

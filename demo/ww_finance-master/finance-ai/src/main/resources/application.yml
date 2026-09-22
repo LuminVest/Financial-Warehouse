@@ -1,5 +1,11 @@
 spring:
   ai:
+    # 双模型共存（DashScope + DeepSeek）时，禁用 Spring AI 默认的 ChatClient 自动装配，
+    # 否则它会因为容器里有两个 ChatModel Bean 而报 NoUniqueBeanDefinitionException。
+    # 我们自己在配置类里用 @Qualifier 明确指定用哪个模型来构建 ChatClient。
+    chat:
+      client:
+        enabled: false
     dashscope:
       api-key: ${DASHSCOPE_API_KEY}
       chat:
@@ -17,6 +23,13 @@ spring:
       connection-timeout: 60000  # 连接超时：60秒
       read-timeout: 120000      # 读取超时：120秒
       write-timeout: 120000
+    # DeepSeek 大模型配置
+    deepseek:
+      api-key: ${DEEPSEEK_API_KEY}
+      chat:
+        options:
+          model: deepseek-chat
+          temperature: 0.7
     # ChromaDB 向量库（本地 chroma run 起在 8000 端口）
     vectorstore:
       chroma:
@@ -28,6 +41,14 @@ spring:
           database-name: SpringAiDatabase
         collection-name: my_collection
         initialize-schema: true
+  # Redis 配置（用来持久化对话记忆）
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 0
+      timeout: 3000ms
   servlet:
     multipart:
       max-file-size: 20MB

@@ -40,6 +40,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '关于我们' },
   },
   {
+    path: '/chat',
+    name: 'Chat',
+    component: () => import('@/views/Chat.vue'),
+    meta: { title: '智能客服' },
+  },
+  {
     path: '/lend/:id',
     name: 'LendDetail',
     component: () => import('@/views/LendDetail.vue'),

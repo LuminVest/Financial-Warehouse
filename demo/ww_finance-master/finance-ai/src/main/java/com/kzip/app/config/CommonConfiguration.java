@@ -2,12 +2,12 @@ package com.kzip.app.config;
 
 
 import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatOptions;
+import com.kzip.app.repository.RedisChatMemoryRepository;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
 import org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chroma.vectorstore.ChromaApi;
@@ -15,6 +15,7 @@ import org.springframework.ai.chroma.vectorstore.ChromaVectorStore;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -55,7 +56,7 @@ public class CommonConfiguration {
 
     // ---- ① Bean 级别：绑定 qwen-turbo（快、便宜，默认普通聊天） ----
     @Bean
-    public ChatClient chatClient(ChatModel model, ChatMemory chatMemory) {
+    public ChatClient chatClient(@Qualifier("dashScopeChatModel") ChatModel model, ChatMemory chatMemory) {
         return ChatClient.builder(model)
                 .defaultOptions(DashScopeChatOptions.builder()
                         .withModel("qwen-turbo")
@@ -73,7 +74,7 @@ public class CommonConfiguration {
     // ---- ① Bean 级别：绑定 qwen-plus（RAG/知识问答用） ----
     @Bean
     public ChatClient pdfChatClient(
-            ChatModel model,
+            @Qualifier("dashScopeChatModel") ChatModel model,
             ChatMemory chatMemory,
             VectorStore vectorStore) {
 
@@ -147,12 +148,10 @@ public class CommonConfiguration {
     // ======================================================================================
 
     @Bean
-    public ChatMemory chatMemory() {
-        // Spring AI 1.1.x 架构：ChatMemory 接口的实现改为 MessageWindowChatMemory，
-        // 底层存储由 ChatMemoryRepository（这里用 InMemoryChatMemoryRepository，基于 ConcurrentHashMap）负责。
-        // 旧版的 InMemoryChatMemory 类已废弃删除。
+    public ChatMemory chatMemory(RedisChatMemoryRepository redisChatMemoryRepository) {
+        // Redis 持久化对话记忆，重启服务不丢
         return MessageWindowChatMemory.builder()
-                .chatMemoryRepository(new InMemoryChatMemoryRepository())
+                .chatMemoryRepository(redisChatMemoryRepository)
                 .maxMessages(20)
                 .build();
     }

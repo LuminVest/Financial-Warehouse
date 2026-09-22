@@ -3,6 +3,7 @@ package com.wwfinance.api.config;
 import com.wwfinance.api.interceptor.JwtAuthInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -52,10 +53,21 @@ public class MyWebConfig  implements WebMvcConfigurer {
                         "/admin/core/login",                    // 管理员登录（ww_finance_admin 前端）
                         "/admin/core/logout",                   // 退出登录（幂等，无需登录态）
                         "/admin/core/knowledge/doc/updateStatus",  // AI 服务回调更新文档状态（无需登录）
+                        "/api/core/chat/save",                   // 用户端保存聊天记录（无需登录）
                         "/doc.html",
                         "/webjars/**",
                         "/swagger-resources/**",
                         "/v2/api-docs"
                 );
+    }
+
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/**")
+                .allowedOrigins("*")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedHeaders("*")
+                .allowCredentials(true)
+                .maxAge(3600);
     }
 }
