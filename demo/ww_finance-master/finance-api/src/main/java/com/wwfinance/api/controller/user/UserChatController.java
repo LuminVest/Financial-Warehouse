@@ -1,8 +1,10 @@
 package com.wwfinance.api.controller.user;
 
 import com.wwfinance.api.entity.ChatMessage;
+import com.wwfinance.api.entity.ChatModelConfig;
 import com.wwfinance.api.entity.ChatSession;
 import com.wwfinance.api.mapper.ChatMessageMapper;
+import com.wwfinance.api.mapper.ChatModelConfigMapper;
 import com.wwfinance.api.mapper.ChatSessionMapper;
 import com.wwfinance.common.result.PccAjaxResult;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +22,24 @@ public class UserChatController {
 
     @Autowired
     private ChatMessageMapper chatMessageMapper;
+
+    @Autowired
+    private ChatModelConfigMapper chatModelConfigMapper;
+
+    /**
+     * 获取当前默认模型（finance-ai 调用，决定用哪个 ChatClient）
+     */
+    @GetMapping("/default-model")
+    public PccAjaxResult getDefaultModel() {
+        ChatModelConfig config = chatModelConfigMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ChatModelConfig>()
+                        .eq(ChatModelConfig::getIsDefault, 1)
+                        .eq(ChatModelConfig::getStatus, 1)
+                        .last("LIMIT 1")
+        );
+        String modelName = config != null ? config.getModelName() : "qwen-plus";
+        return new PccAjaxResult(200, "获取成功", modelName);
+    }
 
     /**
      * 保存聊天记录（用户端对话完成后调用）

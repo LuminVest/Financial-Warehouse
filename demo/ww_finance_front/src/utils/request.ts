@@ -14,6 +14,7 @@ export function getToken(): string | null {
 }
 
 export function setToken(token: string) {
+  // 不设 expires，浏览器关闭即失效
   document.cookie = `user_token=${encodeURIComponent(token)}; path=/`
 }
 

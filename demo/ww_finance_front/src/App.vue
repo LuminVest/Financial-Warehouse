@@ -4,10 +4,14 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
 import { useUserStore, type UserInfo } from '@/stores/user'
 import { getUserInfo, logout as apiLogout } from '@/api/user'
+import ChatWidget from '@/components/ChatWidget.vue'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+
+// 登录/注册页时隐藏全局导航、侧边栏和底部，只显示登录卡片
+const isAuthPage = computed(() => route.path === '/login' || route.path === '/register')
 
 onMounted(async () => {
   if (userStore.isLogin && !userStore.userInfo) {
@@ -65,8 +69,8 @@ async function handleLogout() {
 </script>
 
 <template>
-  <div class="app-shell">
-    <header class="top-bar">
+  <div class="app-shell" :class="{ 'auth-shell': isAuthPage }">
+    <header v-if="!isAuthPage" class="top-bar">
       <nav class="top-nav">
         <el-button text :class="{ active: $route.path === '/home' }" @click="router.push('/home')">
           首页
@@ -92,8 +96,8 @@ async function handleLogout() {
         </template>
       </div>
     </header>
-    <div class="body">
-      <aside v-if="userStore.isLogin" class="side">
+    <div class="body" :class="{ 'auth-body': isAuthPage }">
+      <aside v-if="!isAuthPage && userStore.isLogin" class="side">
         <div class="side-logo">
           <div class="logo-text">旺旺信贷</div>
           <div class="logo-slogan">让金融服务更简单</div>
@@ -110,11 +114,12 @@ async function handleLogout() {
           </div>
         </nav>
       </aside>
-      <main class="main">
+      <main class="main" :class="{ 'auth-main': isAuthPage }">
         <router-view />
       </main>
     </div>
-    <footer class="footer">旺旺信贷 · 商丘师范学院项目实训 · 模拟教学系统，不涉及真实资金</footer>
+    <footer v-if="!isAuthPage" class="footer">旺旺信贷 · 商丘师范学院项目实训 · 模拟教学系统，不涉及真实资金</footer>
+    <ChatWidget v-if="!isAuthPage" />
   </div>
 </template>
 
@@ -124,6 +129,18 @@ async function handleLogout() {
   display: flex;
   flex-direction: column;
   background: #f5f6f8;
+}
+.app-shell.auth-shell {
+  background: transparent;
+  height: 100vh;
+  overflow: hidden;
+}
+.app-shell.auth-shell .body {
+  max-width: none;
+  padding: 0;
+}
+.app-shell.auth-shell .main {
+  padding: 0;
 }
 .top-bar {
   height: 56px;

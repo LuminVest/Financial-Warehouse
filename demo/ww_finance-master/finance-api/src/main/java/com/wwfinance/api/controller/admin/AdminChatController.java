@@ -209,14 +209,11 @@ public class AdminChatController {
      */
     @PutMapping("/model/{id}/default")
     public PccAjaxResult setDefaultModel(@PathVariable Long id) {
-        List<ChatModelConfig> all = chatModelConfigMapper.selectList(null);
-        for (ChatModelConfig c : all) {
-            c.setIsDefault(0);
-            chatModelConfigMapper.updateById(c);
+        chatModelConfigMapper.clearDefault();
+        int rows = chatModelConfigMapper.setDefault(id);
+        if (rows == 0) {
+            return new PccAjaxResult(500, "模型不存在或已删除");
         }
-        ChatModelConfig config = chatModelConfigMapper.selectById(id);
-        config.setIsDefault(1);
-        chatModelConfigMapper.updateById(config);
         return new PccAjaxResult(200, "设置成功");
     }
 }

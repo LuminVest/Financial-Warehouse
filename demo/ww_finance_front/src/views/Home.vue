@@ -96,12 +96,6 @@ onMounted(async () => {
         </div>
       </div>
     </div>
-
-    <!-- 悬浮智能客服按钮 -->
-    <div class="chat-float-btn" @click="router.push('/chat')">
-      <el-icon size="24"><Service /></el-icon>
-      <span>智能客服</span>
-    </div>
   </div>
 </template>
 
@@ -209,34 +203,5 @@ onMounted(async () => {
   font-size: 13px;
   color: #666;
   line-height: 1.6;
-}
-
-.chat-float-btn {
-  position: fixed;
-  right: 24px;
-  bottom: 80px;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: #409eff;
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.4);
-  transition: all 0.3s;
-  z-index: 999;
-}
-
-.chat-float-btn:hover {
-  transform: scale(1.1);
-  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.5);
-}
-
-.chat-float-btn span {
-  font-size: 10px;
-  margin-top: 2px;
 }
 </style>

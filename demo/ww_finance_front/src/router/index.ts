@@ -127,11 +127,17 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   document.title = `${String(to.meta.title ?? '')} - 旺旺金融`
-  if (to.meta.requiresAuth) {
-    const token = document.cookie.match(/(?:^|;\s*)user_token=([^;]*)/)?.[1]
-    if (!token) {
-      return { path: '/login', query: { redirect: to.fullPath } }
-    }
+  const token = document.cookie.match(/(?:^|;\s*)user_token=([^;]*)/)?.[1]
+  // 已登录用户访问登录/注册页时，直接进首页
+  if (token && (to.path === '/login' || to.path === '/register')) {
+    return { path: '/home' }
+  }
+  // 公开页面：游客可看，不需要登录
+  const publicPages = ['/home', '/invest', '/safety', '/about', '/login', '/register']
+  const isPublic = publicPages.some(p => to.path.startsWith(p)) || to.path.startsWith('/lend/')
+  // 需要登录的页面：/center/*、/chat
+  if (!token && !isPublic) {
+    return { path: '/login', query: { redirect: to.fullPath } }
   }
   return true
 })

@@ -82,6 +82,7 @@ public class MyAiController {
     /**
      * 知识库 RAG 问答（标准写法，自动检索 + 对话记忆）
      * GET /ai/knowledge-chat?prompt=xxx&chatId=xxx
+     * 模型由管理端 chat_model_config 表的默认配置决定
      */
     @RequestMapping(value = "/knowledge-chat", produces = "text/html;charset=UTF-8")
     public Flux<String> knowledgeChat(String prompt, String chatId) {
@@ -94,7 +95,12 @@ public class MyAiController {
                     + "4. 对话中'我/用户'指客户，'你'指小旺自己，根据上下文准确理解。\n"
                     + "5. 记住之前的对话内容，保持上下文连贯。";
 
-            var request = ragChatClient
+            // 从管理端获取当前默认模型
+            String defaultModel = getDefaultModel();
+            ChatClient selectedClient = defaultModel != null && defaultModel.toLowerCase().contains("deepseek")
+                    ? ragChatClient : chatClient;
+
+            var request = selectedClient
                     .prompt()
                     .system(systemPrompt)
                     .user(prompt);
@@ -111,5 +117,30 @@ public class MyAiController {
             e.printStackTrace();
             return Flux.just("系统异常: " + e.getMessage());
         }
+    }
+
+    // 缓存默认模型，30秒刷新一次
+    private volatile String cachedModel = null;
+    private volatile long cacheTime = 0;
+    private static final long CACHE_TTL = 30_000; // 30秒
+
+    private String getDefaultModel() {
+        long now = System.currentTimeMillis();
+        if (cachedModel != null && now - cacheTime < CACHE_TTL) {
+            return cachedModel;
+        }
+        try {
+            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            java.util.Map<?, ?> resp = restTemplate.getForObject(
+                    "http://localhost:8990/api/core/chat/default-model", java.util.Map.class);
+            if (resp != null && resp.get("data") != null) {
+                cachedModel = resp.get("data").toString();
+                cacheTime = now;
+            }
+        } catch (Exception e) {
+            // 获取失败用上次缓存，没有就默认 qwen
+            if (cachedModel == null) cachedModel = "qwen-plus";
+        }
+        return cachedModel;
     }
 }
