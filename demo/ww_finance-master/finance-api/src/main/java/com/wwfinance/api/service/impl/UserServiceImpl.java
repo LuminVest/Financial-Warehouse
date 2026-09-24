@@ -138,11 +138,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         // 1. 按手机号查用户
         User user = this.getOne(new LambdaQueryWrapper<User>().eq(User::getMobile, userDTO.getMobile()));
         if (user == null) {
-            throw new BusinessException("手机号未注册");
+            throw new BusinessException("账号或密码错误");
         }
         // 2. 校验密码（数据库存的是 MD5 加密后的值）
         if (!MD5.encrypt(userDTO.getPassword()).equals(user.getPassword())) {
-            throw new BusinessException("密码错误");
+            throw new BusinessException("账号或密码错误");
         }
         // 3. 校验账号状态（1 正常 / 0 禁用）
         if (user.getStatus() != null && user.getStatus() == 0) {

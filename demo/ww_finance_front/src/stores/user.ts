@@ -14,7 +14,7 @@ export interface UserInfo {
 
 export const useUserStore = defineStore('user', () => {
   const token = ref<string | null>(getToken())
-  const userInfo = ref<UserInfo | null>(null)
+  const userInfo = ref<UserInfo | null>(loadUserInfo())
 
   const isLogin = computed(() => !!token.value)
 
@@ -25,13 +25,28 @@ export const useUserStore = defineStore('user', () => {
 
   function setInfo(info: UserInfo | null) {
     userInfo.value = info
+    if (info) {
+      localStorage.setItem('user_info', JSON.stringify(info))
+    } else {
+      localStorage.removeItem('user_info')
+    }
   }
 
   function logout() {
     token.value = null
     userInfo.value = null
     clearToken()
+    localStorage.removeItem('user_info')
   }
 
   return { token, userInfo, isLogin, setAuth, setInfo, logout }
 })
+
+function loadUserInfo(): UserInfo | null {
+  try {
+    const raw = localStorage.getItem('user_info')
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
