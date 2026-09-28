@@ -11,7 +11,8 @@ const route = useRoute()
 const userStore = useUserStore()
 
 const form = reactive({
-  userType: 1,
+  // 手册定义：1=投资人 2=借款人；默认借款人（与注册页一致）
+  userType: 2,
   mobile: '',
   password: '',
 })
@@ -33,7 +34,8 @@ async function handleLogin() {
       userInfo: never
     }
     userStore.setAuth(res.token)
-    userStore.setInfo(res.userInfo)
+    // 以登录页所选角色标签为准（1=投资人 / 2=借款人），决定登录后的界面菜单
+    userStore.setInfo({ ...res.userInfo, userType: form.userType } as never)
     ElMessage.success('登录成功')
     router.push((route.query.redirect as string) || '/home')
   } catch {
@@ -55,7 +57,7 @@ async function handleLogin() {
 
       <el-segmented
         v-model="form.userType"
-        :options="[{ label: '借款人', value: 1 }, { label: '投资人', value: 2 }]"
+        :options="[{ label: '借款人', value: 2 }, { label: '投资人', value: 1 }]"
         class="type-tabs"
       />
 

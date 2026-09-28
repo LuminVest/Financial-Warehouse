@@ -58,6 +58,10 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
         if (user == null) {
             throw new BusinessException("用户不存在");
         }
+        // 手册规则：仅借款人身份（userType=2）可提交借款认证，投资人无法借款
+        if (user.getUserType() != null && user.getUserType() != 2) {
+            throw new BusinessException("仅借款人身份可提交借款认证，投资人无法借款");
+        }
         // 1. 添加 borrower：姓名/身份证/手机号取 user 表，其余认证信息来自 DTO
         Borrower borrower = new Borrower();
         BeanUtils.copyProperties(borrowerDTO, borrower);

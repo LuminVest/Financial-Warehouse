@@ -94,6 +94,14 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
      */
     @Override
     public void saveBorrowInfo(BorrowInfo borrowInfo, Long userId) {
+        // 手册规则：仅借款人身份（userType=2）可申请借款，投资人无法借款
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException("用户不存在");
+        }
+        if (user.getUserType() != null && user.getUserType() != 2) {
+            throw new BusinessException("仅借款人身份可申请借款，投资人无法借款");
+        }
         // 校验可借额度：借款人认证通过后按收入档位映射（未认证通过额度为 0）
         BigDecimal limit = getBorrowAmount(userId);
         if (borrowInfo.getAmount() == null || borrowInfo.getAmount().compareTo(limit) > 0) {

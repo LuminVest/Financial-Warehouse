@@ -8,7 +8,8 @@ import { register, sendCode } from '@/api/user'
 const router = useRouter()
 
 const form = reactive({
-  userType: 1,
+  // 手册定义：1=投资人 2=借款人；注册默认借款人
+  userType: 2,
   mobile: '',
   password: '',
   passwordto: '',
@@ -80,7 +81,7 @@ async function handleRegister() {
 
       <el-segmented
         v-model="form.userType"
-        :options="[{ label: '借款人', value: 1 }, { label: '投资人', value: 2 }]"
+        :options="[{ label: '借款人', value: 2 }, { label: '投资人', value: 1 }]"
         class="type-tabs"
       />
 

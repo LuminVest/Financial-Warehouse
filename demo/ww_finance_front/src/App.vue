@@ -33,7 +33,8 @@ const menus = computed(() => {
     { path: '/center/withdraw', text: '提现' },
     { path: '/center/profile', text: '个人中心' },
   ]
-  if (userStore.userInfo?.userType === 1) {
+  // 手册：userType=1 投资人（5项）/ userType=2 借款人（8项）
+  if (userStore.userInfo?.userType === 2) {
     return [
       { path: '/center/bind', text: '账户绑定' },
       { path: '/center/borrow-apply', text: '立即借款' },

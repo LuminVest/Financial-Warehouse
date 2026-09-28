@@ -27,6 +27,7 @@ import com.wwfinance.api.utils.FormHelper;
 import com.wwfinance.api.utils.HfbConst;
 import com.wwfinance.api.utils.LendNoUtils;
 import com.wwfinance.api.utils.RequestHelper;
+import com.wwfinance.common.exception.BusinessException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -102,10 +103,15 @@ public class LendItemServiceImpl extends ServiceImpl<LendItemMapper, LendItem> i
     public String commitInvest(InvestDTO investDTO, Long userId) {
         // 0. 覆盖投资人信息（以当前登录用户为准，防止伪造）
         User user = userService.getById(userId);
-        if (user != null) {
-            investDTO.setInvestUserId(user.getId());
-            investDTO.setInvestName(user.getName());
+        if (user == null) {
+            throw new BusinessException("用户不存在");
         }
+        // 手册规则：仅投资人身份（userType=1）可投标，借款人（userType=2）无法投资
+        if (user.getUserType() != null && user.getUserType() != 1) {
+            throw new BusinessException("仅投资人身份可投标，借款人无法投资");
+        }
+        investDTO.setInvestUserId(user.getId());
+        investDTO.setInvestName(user.getName());
         // 1. 校验绑定：必须有托管协议号
         UserBind userBind = userBindService.getBindByUserId(userId);
         if (userBind == null || userBind.getBindCode() == null || userBind.getBindCode().isEmpty()) {

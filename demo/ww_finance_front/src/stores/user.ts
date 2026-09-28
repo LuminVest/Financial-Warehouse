@@ -9,7 +9,7 @@ export interface UserInfo {
   idCard?: string
   borrowAuthStatus?: number
   integral?: number
-  userType?: number // 1借款人 2投资人
+  userType?: number // 1投资人 2借款人
 }
 
 export const useUserStore = defineStore('user', () => {
