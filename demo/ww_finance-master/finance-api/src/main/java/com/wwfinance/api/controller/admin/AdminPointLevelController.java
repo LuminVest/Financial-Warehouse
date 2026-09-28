@@ -45,8 +45,8 @@ public class AdminPointLevelController {
     public PccAjaxResult add(@RequestBody Map<String, Object> body) {
         integralGradeService.addForAdmin(
                 str(body.get("levelName")),
-                intV(body.get("minScore")),
-                intV(body.get("maxScore")),
+                longV(body.get("minScore")),
+                longV(body.get("maxScore")),
                 dec(body.get("borrowLimit")));
         return new PccAjaxResult(200, "新增成功");
     }
@@ -57,8 +57,8 @@ public class AdminPointLevelController {
         integralGradeService.updateForAdmin(
                 Long.valueOf(String.valueOf(body.get("id"))),
                 str(body.get("levelName")),
-                intV(body.get("minScore")),
-                intV(body.get("maxScore")),
+                longV(body.get("minScore")),
+                longV(body.get("maxScore")),
                 dec(body.get("borrowLimit")));
         return new PccAjaxResult(200, "修改成功");
     }
@@ -74,8 +74,8 @@ public class AdminPointLevelController {
         return v == null ? null : String.valueOf(v);
     }
 
-    private Integer intV(Object v) {
-        return v == null ? null : Integer.valueOf(String.valueOf(v));
+    private Long longV(Object v) {
+        return v == null ? null : Long.valueOf(String.valueOf(v));
     }
 
     private BigDecimal dec(Object v) {

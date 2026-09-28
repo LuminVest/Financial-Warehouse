@@ -8,6 +8,7 @@ import com.wwfinance.api.entity.BorrowInfo;
 import com.wwfinance.api.entity.Borrower;
 import com.wwfinance.api.entity.Dict;
 import com.wwfinance.api.entity.Lend;
+import com.wwfinance.api.entity.LendReturn;
 import com.wwfinance.api.entity.User;
 import com.wwfinance.api.entity.vo.BorrowRecordAdminVO;
 import com.wwfinance.api.enums.BorrowInfoStatusEnum;
@@ -17,6 +18,7 @@ import com.wwfinance.api.mapper.BorrowInfoMapper;
 import com.wwfinance.api.mapper.BorrowerMapper;
 import com.wwfinance.api.mapper.DictMapper;
 import com.wwfinance.api.mapper.LendMapper;
+import com.wwfinance.api.mapper.LendReturnMapper;
 import com.wwfinance.api.mapper.UserMapper;
 import com.wwfinance.api.service.BorrowInfoService;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +50,9 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
     @Autowired
     private LendMapper lendMapper;
 
+    @Autowired
+    private LendReturnMapper lendReturnMapper;
+
     /**
      * 获取借款申请审批状态：查该用户最近一条借款信息的 status
      */
@@ -66,7 +71,11 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
     /**
      * 获取可借额度：
      * 借款人认证通过后，根据月收入档位（income）映射可借额度。
-     * 说明：额度档位为演示口径（1→5千，2→1万，3→3万，4→5万），可按老师要求调整。
+     * 说明：额度 = 月收入 × 12（接近银行消费贷/房贷口径）：
+     *      1→3千×12=3.6万，2→8千×12=9.6万，3→2万×12=24万，4→4万×12=48万，
+     *      5→8万×12=96万，6→15万×12=180万；
+     *      7/8 为企业主专属档（大额经营贷，不按个人月收入×12）：
+     *      7→500万，8→2000万。
      */
     @Override
     public BigDecimal getBorrowAmount(Long userId) {
@@ -80,10 +89,14 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
         BigDecimal amount = new BigDecimal(0);
         Integer income = borrower.getIncome() == null ? 0 : borrower.getIncome();
         switch (income) {
-            case 1: amount = new BigDecimal(5000); break;
-            case 2: amount = new BigDecimal(10000); break;
-            case 3: amount = new BigDecimal(30000); break;
-            case 4: amount = new BigDecimal(50000); break;
+            case 1: amount = new BigDecimal(36000); break;
+            case 2: amount = new BigDecimal(96000); break;
+            case 3: amount = new BigDecimal(240000); break;
+            case 4: amount = new BigDecimal(480000); break;
+            case 5: amount = new BigDecimal(960000); break;
+            case 6: amount = new BigDecimal(1800000); break;
+            case 7: amount = new BigDecimal(5000000); break;
+            case 8: amount = new BigDecimal(20000000); break;
             default: amount = new BigDecimal(0);
         }
         return amount;
@@ -212,16 +225,25 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
                 borrowInfo.getId(), lend.getId(), lend.getTitle());
     }
 
-    /** 借款用途数字 → 字典中文 */
+    /** 借款用途数字 → 字典中文（dict 表：父项 dict_code=moneyUse，子项按 parent_id+value 匹配） */
     private String convertMoneyUse(Integer moneyUse) {
         if (moneyUse == null) {
             return "";
         }
-        Dict dict = dictMapper.selectOne(new LambdaQueryWrapper<Dict>()
+        // 先按 dict_code 找父项（父项 value 为 NULL）
+        Dict parent = dictMapper.selectOne(new LambdaQueryWrapper<Dict>()
                 .eq(Dict::getDictCode, "moneyUse")
+                .isNull(Dict::getValue)
+                .last("limit 1"));
+        if (parent == null) {
+            return "";
+        }
+        // 再按 parent_id + value 找子项名称
+        Dict child = dictMapper.selectOne(new LambdaQueryWrapper<Dict>()
+                .eq(Dict::getParentId, parent.getId())
                 .eq(Dict::getValue, moneyUse)
                 .last("limit 1"));
-        return dict == null ? "" : dict.getName();
+        return child == null ? "" : child.getName();
     }
 
     /**
@@ -248,18 +270,26 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
             vo.setStatus(0);            // 待审核（0 未提交 / 1 审核中）
         }
         // 资金用途：字典 dict_code=moneyUse 转中文
-        String purpose = "";
-        if (info.getMoneyUse() != null) {
-            Dict dict = dictMapper.selectOne(new LambdaQueryWrapper<Dict>()
-                    .eq(Dict::getDictCode, "moneyUse")
-                    .eq(Dict::getValue, info.getMoneyUse())
-                    .last("limit 1"));
-            if (dict != null) {
-                purpose = dict.getName();
+        vo.setPurpose(convertMoneyUse(info.getMoneyUse()));
+        // 已还金额：该借款申请关联标的的还款计划中已还本金累计（status=1 表示已还）
+        BigDecimal repaid = BigDecimal.ZERO;
+        Lend relatedLend = lendMapper.selectOne(new LambdaQueryWrapper<Lend>()
+                .eq(Lend::getBorrowInfoId, info.getId())
+                .apply("is_deleted = 0")
+                .last("limit 1"));
+        if (relatedLend != null) {
+            List<LendReturn> repaidReturns = lendReturnMapper.selectList(
+                    new LambdaQueryWrapper<LendReturn>()
+                            .eq(LendReturn::getLendId, relatedLend.getId())
+                            .eq(LendReturn::getStatus, 1)
+                            .apply("is_deleted = 0"));
+            for (LendReturn r : repaidReturns) {
+                if (r.getPrincipal() != null) {
+                    repaid = repaid.add(r.getPrincipal());
+                }
             }
         }
-        vo.setPurpose(purpose);
-        vo.setRepayAmount(new BigDecimal(0));
+        vo.setRepayAmount(repaid);
         vo.setApplyTime(info.getCreateTime());
         vo.setAuditTime(info.getUpdateTime());
         vo.setRepayEndTime("");

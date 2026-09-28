@@ -45,7 +45,7 @@ public class IntegralGradeServiceImpl extends ServiceImpl<IntegralGradeMapper, I
     }
 
     @Override
-    public void addForAdmin(String levelName, Integer minScore, Integer maxScore, BigDecimal borrowLimit) {
+    public void addForAdmin(String levelName, Long minScore, Long maxScore, BigDecimal borrowLimit) {
         IntegralGrade grade = new IntegralGrade();
         grade.setGradeName(levelName);
         grade.setIntegralStart(minScore);
@@ -56,7 +56,7 @@ public class IntegralGradeServiceImpl extends ServiceImpl<IntegralGradeMapper, I
     }
 
     @Override
-    public void updateForAdmin(Long id, String levelName, Integer minScore, Integer maxScore, BigDecimal borrowLimit) {
+    public void updateForAdmin(Long id, String levelName, Long minScore, Long maxScore, BigDecimal borrowLimit) {
         IntegralGrade grade = this.getById(id);
         if (grade == null) {
             throw new BusinessException("积分等级不存在");

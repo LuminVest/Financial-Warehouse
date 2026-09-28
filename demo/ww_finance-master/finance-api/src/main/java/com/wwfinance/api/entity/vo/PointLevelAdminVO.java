@@ -26,10 +26,10 @@ public class PointLevelAdminVO implements Serializable {
     private String levelName;
 
     @ApiModelProperty(value = "积分区间开始")
-    private Integer minScore;
+    private Long minScore;
 
     @ApiModelProperty(value = "积分区间结束")
-    private Integer maxScore;
+    private Long maxScore;
 
     @ApiModelProperty(value = "借款额度")
     private BigDecimal borrowLimit;

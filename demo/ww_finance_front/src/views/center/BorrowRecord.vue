@@ -16,6 +16,9 @@ const statusMap: Record<number, { text: string; type: 'info' | 'warning' | 'succ
 
 const returnMethodText: Record<number, string> = { 1: '等额本息', 2: '等额本金', 3: '按月付息到期还本' }
 
+// 借款用途字典：dict_code=moneyUse（1旅游 2买房 3装修 4医疗 5美容 6其他）
+const moneyUseText: Record<number, string> = { 1: '旅游', 2: '买房', 3: '装修', 4: '医疗', 5: '美容', 6: '其他' }
+
 const lendStatusMap: Record<number, string> = {
   0: '待发布',
   1: '募集中',
@@ -67,6 +70,9 @@ onMounted(async () => {
       </el-table-column>
       <el-table-column label="还款方式" width="140">
         <template #default="{ row }">{{ returnMethodText[row.borrowInfo.returnMethod] ?? row.borrowInfo.returnMethod }}</template>
+      </el-table-column>
+      <el-table-column label="借款用途" width="90">
+        <template #default="{ row }">{{ moneyUseText[row.borrowInfo.moneyUse] ?? '未填写' }}</template>
       </el-table-column>
       <el-table-column label="状态" width="100">
         <template #default="{ row }">

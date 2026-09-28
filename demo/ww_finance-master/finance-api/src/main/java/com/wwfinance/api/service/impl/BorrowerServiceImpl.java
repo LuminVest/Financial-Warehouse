@@ -166,7 +166,7 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
         if (needIntegral) {
             score = calcBorrowerScore(id, idCardOk, carOk, houseOk);
             if (score > 0) {
-                userIntegralService.addIntegral(borrower.getUserId(), score, "借款人认证审批通过-" + id);
+                userIntegralService.addIntegral(borrower.getUserId(), (long) score, "借款人认证审批通过-" + id);
                 log.info("借款人审批通过积分回写, borrowerId={}, userId={}, score={}", id, borrower.getUserId(), score);
             }
         }
@@ -251,14 +251,23 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
         vo.setBankCard("");
         // 工作单位：borrower.employer（无则返回空）
         vo.setEmployer(borrower.getEmployer() == null ? "" : borrower.getEmployer());
-        // 月收入/授信额度：按认证收入档位映射（与 getBorrowAmount 口径一致）
+        // 月收入/授信额度：按认证收入档位映射（与 getBorrowAmount 口径一致，月收入×12）
         Integer incomeLevel = borrower.getIncome();
         if (incomeLevel == null) {
             vo.setMonthlyIncome(0);
             vo.setCreditLimit(0);
         } else {
-            vo.setMonthlyIncome(incomeLevel == 1 ? 3000 : incomeLevel == 2 ? 8000 : incomeLevel == 3 ? 20000 : 40000);
-            vo.setCreditLimit(incomeLevel == 1 ? 5000 : incomeLevel == 2 ? 10000 : incomeLevel == 3 ? 30000 : 50000);
+            switch (incomeLevel) {
+                case 1: vo.setMonthlyIncome(3000); vo.setCreditLimit(36000); break;
+                case 2: vo.setMonthlyIncome(8000); vo.setCreditLimit(96000); break;
+                case 3: vo.setMonthlyIncome(20000); vo.setCreditLimit(240000); break;
+                case 4: vo.setMonthlyIncome(40000); vo.setCreditLimit(480000); break;
+                case 5: vo.setMonthlyIncome(80000); vo.setCreditLimit(960000); break;
+                case 6: vo.setMonthlyIncome(150000); vo.setCreditLimit(1800000); break;
+                case 7: vo.setMonthlyIncome(300000); vo.setCreditLimit(5000000); break;
+                case 8: vo.setMonthlyIncome(800000); vo.setCreditLimit(20000000); break;
+                default: vo.setMonthlyIncome(0); vo.setCreditLimit(0);
+            }
         }
         // 绑卡信息：取 user_bind 已绑定记录，银行卡号掩码展示
         UserBind bind = userBindMapper.selectOne(new LambdaQueryWrapper<UserBind>()

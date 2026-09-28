@@ -29,7 +29,7 @@ public class UserIntegral implements Serializable {
 
     /** 积分 */
     @TableField("integral")
-    private Integer integral;
+    private Long integral;
 
     /** 获取积分说明（含业务单号，用于幂等） */
     @TableField("content")

@@ -99,7 +99,7 @@ public class User  implements Serializable {
      * 用户积分
      */
     @TableField("integral")
-    private Integer integral;
+    private Long integral;
 
 
     /**

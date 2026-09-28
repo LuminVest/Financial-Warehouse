@@ -127,7 +127,7 @@ public class UserAccountServiceimpl extends ServiceImpl<UserAccountMapper, UserA
         // 埋点：充值流水 + 积分（1元=1分，幂等键=商户订单号）
         String billNo = String.valueOf(paramMap.get("agentBillNo"));
         transFlowService.addFlow(userId, 1, billNo, amount, "充值到账");
-        userIntegralService.addIntegral(userId, amount.intValue(), "充值" + billNo);
+        userIntegralService.addIntegral(userId, amount.longValue(), "充值" + billNo);
         return "success";
     }
 

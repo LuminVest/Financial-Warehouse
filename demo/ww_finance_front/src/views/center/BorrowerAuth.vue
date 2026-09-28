@@ -155,7 +155,11 @@ onMounted(load)
               <el-option label="0-3000" :value="1" />
               <el-option label="3000-10000" :value="2" />
               <el-option label="10000-30000" :value="3" />
-              <el-option label="30000以上" :value="4" />
+              <el-option label="30000-50000" :value="4" />
+              <el-option label="50000-100000" :value="5" />
+              <el-option label="100000以上" :value="6" />
+              <el-option label="200000-500000（企业主）" :value="7" />
+              <el-option label="500000以上（大型企业主）" :value="8" />
             </el-select>
           </el-form-item>
           <el-form-item label="还款来源">

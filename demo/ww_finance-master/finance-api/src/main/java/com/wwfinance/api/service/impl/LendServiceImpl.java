@@ -183,7 +183,7 @@ public class LendServiceImpl extends ServiceImpl<LendMapper, Lend> implements Le
 
         // 埋点：放款流水 + 积分（1元=1分，幂等键=放款单号）
         transFlowService.addFlow(lend.getUserId(), 5, loanNo, loanAmt, "放款到账：" + lend.getTitle());
-        userIntegralService.addIntegral(lend.getUserId(), loanAmt.intValue(), "放款" + loanNo);
+        userIntegralService.addIntegral(lend.getUserId(), loanAmt.longValue(), "放款" + loanNo);
 
         // 标的置已放款 + 记录实际放款额
         lend.setRealAmount(loanAmt);

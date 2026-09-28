@@ -125,6 +125,12 @@ public class Lend implements Serializable {
     private String lendInfo;
 
     /**
+     * 风险等级（1-低 2-中 3-高）
+     */
+    @TableField("risk_level")
+    private Integer riskLevel;
+
+    /**
      * 平台预期收益
      */
     @TableField("expect_amount")

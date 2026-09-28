@@ -32,11 +32,11 @@ public class IntegralGrade implements Serializable {
 
     /** 积分区间开始 */
     @TableField("integral_start")
-    private Integer integralStart;
+    private Long integralStart;
 
     /** 积分区间结束 */
     @TableField("integral_end")
-    private Integer integralEnd;
+    private Long integralEnd;
 
     /** 借款额度 */
     @TableField("borrow_amount")

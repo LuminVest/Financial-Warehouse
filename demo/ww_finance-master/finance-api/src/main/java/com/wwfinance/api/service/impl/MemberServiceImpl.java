@@ -77,7 +77,7 @@ public class MemberServiceImpl implements MemberService {
         user.setName(realName);
         user.setIdCard(idCard);
         user.setPassword(MD5.encrypt(INIT_PASSWORD));
-        user.setIntegral(score == null ? 0 : score);
+        user.setIntegral(score == null ? 0L : (long) score);
         user.setStatus(1);
         user.setDeleted(false);
         userMapper.insert(user);
@@ -108,7 +108,7 @@ public class MemberServiceImpl implements MemberService {
                 .setRealName(u.getName())
                 .setIdCard(u.getIdCard())
                 .setGender(u.getGender())
-                .setScore(u.getIntegral())
+                .setScore(u.getIntegral() == null ? 0L : u.getIntegral())
                 .setLevelName(matchLevelName(u.getIntegral(), grades))
                 .setStatus(u.getStatus())
                 .setRegisterTime(u.getCreateTime())
@@ -119,13 +119,13 @@ public class MemberServiceImpl implements MemberService {
     /**
      * 按积分匹配等级名称（积分落在 [integral_start, integral_end] 区间）
      */
-    private String matchLevelName(Integer integral, List<IntegralGrade> grades) {
+    private String matchLevelName(Long integral, List<IntegralGrade> grades) {
         if (integral == null || grades == null || grades.isEmpty()) {
             return "";
         }
         for (IntegralGrade g : grades) {
-            Integer start = g.getIntegralStart();
-            Integer end = g.getIntegralEnd();
+            Long start = g.getIntegralStart();
+            Long end = g.getIntegralEnd();
             if (start != null && end != null && integral >= start && integral <= end) {
                 return g.getGradeName();
             }

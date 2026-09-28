@@ -37,7 +37,7 @@ public class MemberAdminVO implements Serializable {
     private Integer gender;
 
     @ApiModelProperty(value = "积分")
-    private Integer score;
+    private Long score;
 
     @ApiModelProperty(value = "等级名称（按积分匹配积分等级表）")
     private String levelName;

@@ -243,7 +243,7 @@ public class LendItemServiceImpl extends ServiceImpl<LendItemMapper, LendItem> i
 
         // 埋点：投标流水 + 积分（1元=1分，幂等键=投资单号）
         transFlowService.addFlow(investUserId, 3, lendItemNo, voteAmt, "投标：" + lend.getTitle());
-        userIntegralService.addIntegral(investUserId, voteAmt.intValue(), "投标" + lendItemNo);
+        userIntegralService.addIntegral(investUserId, voteAmt.longValue(), "投标" + lendItemNo);
 
         // 更新标的：原子累加已投金额/人数（并发投标不会超投/丢更新），满标自动置状态
         int rows = lendMapper.addInvest(lend.getId(), voteAmt);

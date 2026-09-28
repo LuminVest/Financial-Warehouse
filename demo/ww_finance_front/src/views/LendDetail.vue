@@ -47,6 +47,12 @@ watch(
 )
 
 const returnMethodText: Record<number, string> = { 1: '等额本息', 2: '等额本金', 3: '按月付息到期还本' }
+// 风险等级：1低 2中 3高
+const riskMap: Record<number, { text: string; type: string }> = {
+  1: { text: '低风险', type: 'success' },
+  2: { text: '中风险', type: 'warning' },
+  3: { text: '高风险', type: 'danger' },
+}
 const statusMap: Record<number, { text: string; type: string }> = {
   0: { text: '待发布', type: 'info' },
   1: { text: '募集中', type: 'primary' },
@@ -162,6 +168,14 @@ onMounted(async () => {
           <div class="stat">
             <div class="k">还款方式</div>
             <div class="v">{{ returnMethodText[lend.returnMethod] ?? lend.returnMethod }}</div>
+          </div>
+          <div class="stat">
+            <div class="k">风险等级</div>
+            <div class="v">
+              <el-tag :type="riskMap[lend.riskLevel]?.type ?? 'info'" size="small">
+                {{ riskMap[lend.riskLevel]?.text ?? '未知' }}
+              </el-tag>
+            </div>
           </div>
         </div>
 

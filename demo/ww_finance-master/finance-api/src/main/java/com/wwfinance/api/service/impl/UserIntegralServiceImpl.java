@@ -48,7 +48,7 @@ public class UserIntegralServiceImpl extends ServiceImpl<UserIntegralMapper, Use
     public Map<String, Object> getIntegralInfo(Long userId) {
         Map<String, Object> result = new HashMap<>();
         User user = userId == null ? null : userService.getById(userId);
-        int integral = user == null || user.getIntegral() == null ? 0 : user.getIntegral();
+        long integral = user == null || user.getIntegral() == null ? 0L : user.getIntegral();
         result.put("userId", userId);
         result.put("userName", user == null ? "" : user.getName());
         result.put("integral", integral);
@@ -83,7 +83,7 @@ public class UserIntegralServiceImpl extends ServiceImpl<UserIntegralMapper, Use
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void addIntegral(Long userId, Integer integral, String content) {
+    public void addIntegral(Long userId, Long integral, String content) {
         if (userId == null || integral == null || integral <= 0) {
             log.warn("积分增加跳过: 参数不合法 userId={}, integral={}", userId, integral);
             return;
@@ -109,7 +109,7 @@ public class UserIntegralServiceImpl extends ServiceImpl<UserIntegralMapper, Use
         // 累加总积分（User.integral）
         User user = userService.getById(userId);
         if (user != null) {
-            int old = user.getIntegral() == null ? 0 : user.getIntegral();
+            long old = user.getIntegral() == null ? 0L : user.getIntegral();
             user.setIntegral(old + integral);
             userService.updateById(user);
         }

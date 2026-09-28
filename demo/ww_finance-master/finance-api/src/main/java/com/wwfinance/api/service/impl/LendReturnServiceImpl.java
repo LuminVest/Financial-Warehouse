@@ -405,7 +405,7 @@ public class LendReturnServiceImpl extends ServiceImpl<LendReturnMapper, LendRet
                 BigDecimal returnAmt = detail.getTotal() == null ? BigDecimal.ZERO : detail.getTotal();
                 transFlowService.addFlow(detail.getInvestUserId(), 4, returnNo + "_" + detail.getId(),
                         returnAmt, "第" + plan.getCurrentPeriod() + "期回款");
-                userIntegralService.addIntegral(detail.getInvestUserId(), returnAmt.intValue(),
+                userIntegralService.addIntegral(detail.getInvestUserId(), returnAmt.longValue(),
                         "回款" + returnNo + "_" + detail.getId());
             }
         }

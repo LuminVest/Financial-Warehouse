@@ -111,6 +111,7 @@ public class LoanProjectServiceImpl implements LoanProjectService {
         lend.setLendYearRate(rate == null ? null
                 : rate.divide(BigDecimal.valueOf(100)));
         lend.setLendInfo(purpose);
+        lend.setRiskLevel(riskLevel == null ? 1 : riskLevel);
         lend.setStatus(1);
         lend.setInvestAmount(BigDecimal.ZERO);
         lend.setInvestNum(0);
@@ -181,7 +182,7 @@ public class LoanProjectServiceImpl implements LoanProjectService {
                 .setProgress(progress)
                 .setStatus(l.getStatus())
                 .setPurpose(l.getLendInfo())
-                .setRiskLevel(null)
+                .setRiskLevel(l.getRiskLevel())
                 .setPublishTime(l.getPublishDate())
                 .setEndTime(l.getLendEndDate())
                 .setCreateTime(l.getCreateTime())

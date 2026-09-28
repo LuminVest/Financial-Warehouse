@@ -14,6 +14,7 @@ export interface Lend {
   investNum: number // 投标人数
   status: number // 0待发布 1募集中 2满标 3还款中 4已下架
   lendInfo: string // 借款用途
+  riskLevel: number // 风险等级 1低 2中 3高
   publishDate: string
 }
 

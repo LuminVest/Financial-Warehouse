@@ -22,6 +22,13 @@ const statusMap: Record<number, { text: string; type: 'primary' | 'success' | 'w
 
 const methodText: Record<number, string> = { 1: '等额本息', 2: '等额本金', 3: '按月付息到期还本' }
 
+// 风险等级：1低 2中 3高
+const riskMap: Record<number, { text: string; type: 'success' | 'warning' | 'danger' | 'info' }> = {
+  1: { text: '低风险', type: 'success' },
+  2: { text: '中风险', type: 'warning' },
+  3: { text: '高风险', type: 'danger' },
+}
+
 const filteredLends = computed(() => {
   return lends.value.filter((l) => {
     if (methodFilter.value !== 0 && l.returnMethod !== methodFilter.value) return false
@@ -84,6 +91,13 @@ onMounted(async () => {
         <el-table-column label="还款方式" width="140">
           <template #default="{ row }">
             {{ methodText[row.returnMethod as number] ?? row.returnMethod }}
+          </template>
+        </el-table-column>
+        <el-table-column label="风险等级" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="riskMap[row.riskLevel]?.type ?? 'info'" size="small">
+              {{ riskMap[row.riskLevel]?.text ?? '未知' }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="110" fixed="right">
