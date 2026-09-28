@@ -27,15 +27,19 @@ const chatBox = ref<HTMLElement>()
 const currentModelName = ref('qwen-plus')
 
 let sessionId = 0
-let userId = localStorage.getItem('ww_user_id')
-if (!userId) {
-  userId = 'u' + Math.random().toString(36).slice(2, 10)
-  localStorage.setItem('ww_user_id', userId)
+// 对话记忆ID：登录用户绑定真实用户ID（记忆互不串），游客用浏览器随机ID
+let guestId = localStorage.getItem('ww_user_id')
+if (!guestId) {
+  guestId = 'u' + Math.random().toString(36).slice(2, 10)
+  localStorage.setItem('ww_user_id', guestId)
 }
 // 从登录态读取真实用户名和手机号，游客时显示"客户"
 const userName = computed(() => userStore.userInfo?.name || '客户')
 const userPhone = computed(() => userStore.userInfo?.mobile || '')
-const chatId = `user_${userId}`
+const chatId = computed(() => {
+  const uid = userStore.userInfo?.id
+  return uid ? `user_${uid}` : `guest_${guestId}`
+})
 
 async function scrollToBottom() {
   await nextTick()
@@ -85,7 +89,7 @@ async function sendMessage() {
 
   try {
     const response = await fetch(
-      `http://localhost:8089/ai/knowledge-chat?prompt=${encodeURIComponent(text)}&chatId=${encodeURIComponent(chatId)}`
+      `http://localhost:8089/ai/knowledge-chat?prompt=${encodeURIComponent(text)}&chatId=${encodeURIComponent(chatId.value)}`
     )
     const reader = response.body?.getReader()
     if (!reader) throw new Error('无法读取响应')
