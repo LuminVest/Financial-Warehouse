@@ -36,6 +36,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '会员列表' },
       },
       {
+        path: 'member/login-record',
+        name: 'MemberLoginRecord',
+        component: () => import('@/views/member/login-record.vue'),
+        meta: { title: '登录日志' },
+      },
+      {
         path: 'borrow/record',
         name: 'BorrowRecord',
         component: () => import('@/views/borrow/record.vue'),

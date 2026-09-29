@@ -21,6 +21,7 @@ export const menuList: MenuItem[] = [
     icon: 'User',
     children: [
       { path: '/member/list', title: '会员列表', icon: '' },
+      { path: '/member/login-record', title: '登录日志', icon: '' },
     ],
   },
   {

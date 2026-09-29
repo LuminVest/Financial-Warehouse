@@ -48,3 +48,32 @@ export function updateMemberStatus(id: number, status: number): Promise<null> {
     data: { status },
   })
 }
+
+// 登录日志
+export interface LoginRecord {
+  id: number
+  userId: number
+  mobile: string
+  nickName: string
+  ip: string
+  createTime: string
+}
+
+export interface LoginRecordPage {
+  records: LoginRecord[]
+  total: number
+}
+
+// 获取登录日志（分页 + 手机号搜索）
+// 完整路径：POST /admin/core/user/loginRecord/{page}/{limit}
+export function getLoginRecord(
+  pageNum: number,
+  pageSize: number,
+  mobile?: string,
+): Promise<LoginRecordPage> {
+  return request({
+    url: `/user/loginRecord/${pageNum}/${pageSize}`,
+    method: 'post',
+    data: mobile && mobile.trim() ? { mobile: mobile.trim() } : {},
+  })
+}

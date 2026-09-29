@@ -8,9 +8,11 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.wwfinance.api.entity.User;
 import com.wwfinance.api.entity.UserAccount;
+import com.wwfinance.api.entity.UserLoginRecord;
 import com.wwfinance.api.entity.dto.AdminUserQuery;
 import com.wwfinance.api.entity.dto.UserDto;
 import com.wwfinance.common.exception.BusinessException;
+import com.wwfinance.api.mapper.UserLoginRecordMapper;
 import com.wwfinance.api.mapper.UserMapper;
 import com.wwfinance.api.service.UserAccountService;
 import com.wwfinance.api.service.UserService;
@@ -20,7 +22,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
+import javax.servlet.http.HttpServletRequest;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -42,6 +48,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Autowired
     private UserAccountService userAccountService;
+
+    @Autowired
+    private UserLoginRecordMapper userLoginRecordMapper;
 
     @Override
     public User getUserById(Long id) {
@@ -150,10 +159,51 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
         // 4. 生成 token（claims 中存 userId，避免手机号超出 int 范围）
         String token = TokenUtil.generateMerchantToken(String.valueOf(user.getId()));
+        // 4.1 记录登录日志（写入 user_login_record，含登录 IP）
+        saveLoginRecord(user);
         // 5. 组装返回：token + 用户信息（password 字段已被 @JsonIgnore，不会返回）
         Map<String, Object> data = new HashMap<>();
         data.put("token", token);
         data.put("userInfo", user);
         return data;
+    }
+
+    /** 登录成功后写一条登录日志（失败不影响登录主流程） */
+    private void saveLoginRecord(User user) {
+        try {
+            UserLoginRecord record = new UserLoginRecord();
+            record.setUserId(user.getId());
+            record.setIp(getClientIp());
+            record.setCreateTime(LocalDateTime.now());
+            record.setIsDeleted(false);
+            userLoginRecordMapper.insert(record);
+        } catch (Exception e) {
+            log.warn("记录登录日志失败: userId={}, err={}", user.getId(), e.getMessage());
+        }
+    }
+
+    /** 从请求头/请求中取客户端 IP，取不到返回空串 */
+    private String getClientIp() {
+        try {
+            ServletRequestAttributes attrs =
+                    (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attrs == null) {
+                return "";
+            }
+            HttpServletRequest request = attrs.getRequest();
+            String ip = request.getHeader("X-Forwarded-For");
+            if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+                ip = request.getHeader("X-Real-IP");
+            }
+            if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+                ip = request.getRemoteAddr();
+            }
+            if (ip != null && ip.contains(",")) {
+                ip = ip.split(",")[0].trim();
+            }
+            return ip == null ? "" : ip;
+        } catch (Exception e) {
+            return "";
+        }
     }
 }
