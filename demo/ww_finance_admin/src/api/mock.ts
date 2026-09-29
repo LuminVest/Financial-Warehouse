@@ -7,6 +7,8 @@ export interface PointLevel {
   minScore: number
   maxScore: number
   borrowLimit: number
+  borrowCoefficient: number
+  borrowRate: number
   createTime: string
 }
 

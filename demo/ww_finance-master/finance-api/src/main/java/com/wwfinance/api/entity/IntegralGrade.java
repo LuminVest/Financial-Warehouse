@@ -42,6 +42,14 @@ public class IntegralGrade implements Serializable {
     @TableField("borrow_amount")
     private BigDecimal borrowAmount;
 
+    /** 可借额度系数（等级越高额度越高，可借额度=收入档位额度×系数） */
+    @TableField("borrow_coefficient")
+    private BigDecimal borrowCoefficient;
+
+    /** 等级最低年利率（小数，等级越高利率越低，借款利率不得低于此值） */
+    @TableField("borrow_rate")
+    private BigDecimal borrowRate;
+
     @TableField("create_time")
     private LocalDateTime createTime;
 

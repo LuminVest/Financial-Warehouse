@@ -34,6 +34,12 @@ public class PointLevelAdminVO implements Serializable {
     @ApiModelProperty(value = "借款额度")
     private BigDecimal borrowLimit;
 
+    @ApiModelProperty(value = "可借额度系数")
+    private BigDecimal borrowCoefficient;
+
+    @ApiModelProperty(value = "等级最低年利率(小数)")
+    private BigDecimal borrowRate;
+
     @ApiModelProperty(value = "创建时间")
     private LocalDateTime createTime;
 }

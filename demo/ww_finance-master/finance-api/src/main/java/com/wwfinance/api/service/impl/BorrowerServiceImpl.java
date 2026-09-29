@@ -251,7 +251,7 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
         vo.setBankCard("");
         // 工作单位：borrower.employer（无则返回空）
         vo.setEmployer(borrower.getEmployer() == null ? "" : borrower.getEmployer());
-        // 月收入/授信额度：按认证收入档位映射（与 getBorrowAmount 口径一致，月收入×12）
+        // 月收入/授信额度：按认证收入档位映射 × 积分等级系数（与 getBorrowAmount 口径一致）
         Integer incomeLevel = borrower.getIncome();
         if (incomeLevel == null) {
             vo.setMonthlyIncome(0);
@@ -267,6 +267,23 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
                 case 7: vo.setMonthlyIncome(300000); vo.setCreditLimit(5000000); break;
                 case 8: vo.setMonthlyIncome(800000); vo.setCreditLimit(20000000); break;
                 default: vo.setMonthlyIncome(0); vo.setCreditLimit(0);
+            }
+            // 积分等级系数加成（与用户端可借额度一致）
+            if (vo.getCreditLimit() > 0) {
+                java.math.BigDecimal coefficient = java.math.BigDecimal.ONE;
+                try {
+                    Map<String, Object> integralInfo = userIntegralService.getIntegralInfo(borrower.getUserId());
+                    Object c = integralInfo == null ? null : integralInfo.get("borrowCoefficient");
+                    if (c != null) {
+                        coefficient = new java.math.BigDecimal(String.valueOf(c));
+                    }
+                } catch (Exception e) {
+                    log.warn("查询借款人积分等级系数失败: userId={}, err={}", borrower.getUserId(), e.getMessage());
+                }
+                java.math.BigDecimal calc = new java.math.BigDecimal(vo.getCreditLimit())
+                        .multiply(coefficient)
+                        .setScale(0, java.math.RoundingMode.HALF_UP);
+                vo.setCreditLimit(calc.intValue());
             }
         }
         // 绑卡信息：取 user_bind 已绑定记录，银行卡号掩码展示

@@ -47,7 +47,9 @@ public class AdminPointLevelController {
                 str(body.get("levelName")),
                 longV(body.get("minScore")),
                 longV(body.get("maxScore")),
-                dec(body.get("borrowLimit")));
+                dec(body.get("borrowLimit")),
+                dec(body.get("borrowCoefficient")),
+                dec(body.get("borrowRate")));
         return new PccAjaxResult(200, "新增成功");
     }
 
@@ -59,7 +61,9 @@ public class AdminPointLevelController {
                 str(body.get("levelName")),
                 longV(body.get("minScore")),
                 longV(body.get("maxScore")),
-                dec(body.get("borrowLimit")));
+                dec(body.get("borrowLimit")),
+                dec(body.get("borrowCoefficient")),
+                dec(body.get("borrowRate")));
         return new PccAjaxResult(200, "修改成功");
     }
 

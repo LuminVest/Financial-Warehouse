@@ -72,11 +72,15 @@ public class UserIntegralServiceImpl extends ServiceImpl<UserIntegralMapper, Use
             result.put("gradeStart", matched.getIntegralStart());
             result.put("gradeEnd", matched.getIntegralEnd());
             result.put("borrowAmount", matched.getBorrowAmount());
+            result.put("borrowCoefficient", matched.getBorrowCoefficient());
+            result.put("borrowRate", matched.getBorrowRate());
         } else {
             result.put("gradeName", "");
             result.put("gradeStart", null);
             result.put("gradeEnd", null);
             result.put("borrowAmount", null);
+            result.put("borrowCoefficient", null);
+            result.put("borrowRate", null);
         }
         return result;
     }

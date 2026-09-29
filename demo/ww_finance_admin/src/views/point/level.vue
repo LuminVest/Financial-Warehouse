@@ -50,6 +50,8 @@ const formData = reactive({
   minScore: 0,
   maxScore: 0,
   borrowLimit: 0,
+  borrowCoefficient: 1,
+  borrowRate: 0.08,
 })
 
 const formRules: FormRules = {
@@ -57,6 +59,8 @@ const formRules: FormRules = {
   minScore: [{ required: true, message: '请输入最小积分', trigger: 'blur' }],
   maxScore: [{ required: true, message: '请输入最大积分', trigger: 'blur' }],
   borrowLimit: [{ required: true, message: '请输入借款额度', trigger: 'blur' }],
+  borrowCoefficient: [{ required: true, message: '请输入额度系数', trigger: 'blur' }],
+  borrowRate: [{ required: true, message: '请输入最低年利率', trigger: 'blur' }],
 }
 
 function openDialog(row?: PointLevel) {
@@ -65,7 +69,10 @@ function openDialog(row?: PointLevel) {
     Object.assign(formData, row)
   } else {
     dialogTitle.value = '新增积分等级'
-    Object.assign(formData, { id: 0, levelName: '', minScore: 0, maxScore: 0, borrowLimit: 0 })
+    Object.assign(formData, {
+      id: 0, levelName: '', minScore: 0, maxScore: 0,
+      borrowLimit: 0, borrowCoefficient: 1, borrowRate: 0.08,
+    })
   }
   dialogVisible.value = true
 }
@@ -89,6 +96,8 @@ async function submitForm() {
           minScore: formData.minScore,
           maxScore: formData.maxScore,
           borrowLimit: formData.borrowLimit,
+          borrowCoefficient: formData.borrowCoefficient,
+          borrowRate: formData.borrowRate,
         })
         ElMessage.success('新增成功')
       }
@@ -134,6 +143,12 @@ onMounted(fetchList)
           <template #default="{ row }">
             <span class="money">¥{{ row.borrowLimit.toLocaleString() }}</span>
           </template>
+        </el-table-column>
+        <el-table-column label="额度系数" min-width="90" align="center">
+          <template #default="{ row }">{{ row.borrowCoefficient ?? 1 }}x</template>
+        </el-table-column>
+        <el-table-column label="最低年利率" min-width="110" align="center">
+          <template #default="{ row }">{{ ((row.borrowRate ?? 0.08) * 100).toFixed(1) }}%</template>
         </el-table-column>
         <el-table-column label="积分区间" min-width="130" align="center">
           <template #default="{ row }">
@@ -190,6 +205,28 @@ onMounted(fetchList)
             style="width: 100%"
           />
         </el-form-item>
+        <el-form-item label="额度系数" prop="borrowCoefficient">
+          <el-input-number
+            v-model="formData.borrowCoefficient"
+            :min="0.1"
+            :max="10"
+            :step="0.1"
+            controls-position="right"
+            style="width: 100%"
+          />
+          <div class="form-tip">可借额度 = 收入档位额度 × 系数（等级越高额度越高）</div>
+        </el-form-item>
+        <el-form-item label="最低年利率" prop="borrowRate">
+          <el-input-number
+            v-model="formData.borrowRate"
+            :min="0.01"
+            :max="0.36"
+            :step="0.01"
+            controls-position="right"
+            style="width: 100%"
+          />
+          <div class="form-tip">借款申请利率不得低于此值（小数，0.08 = 8%）</div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="closeDialog">取消</el-button>
@@ -220,6 +257,13 @@ onMounted(fetchList)
 .money {
   color: #f56c6c;
   font-weight: 600;
+}
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.4;
+  margin-top: 4px;
+  width: 100%;
 }
 .pagination-wrap {
   margin-top: 16px;

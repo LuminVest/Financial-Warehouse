@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.wwfinance.api.entity.BorrowInfo;
 import com.wwfinance.api.entity.Borrower;
 import com.wwfinance.api.entity.Dict;
+import com.wwfinance.api.entity.IntegralGrade;
 import com.wwfinance.api.entity.Lend;
 import com.wwfinance.api.entity.LendReturn;
 import com.wwfinance.api.entity.User;
@@ -17,6 +18,7 @@ import com.wwfinance.common.exception.BusinessException;
 import com.wwfinance.api.mapper.BorrowInfoMapper;
 import com.wwfinance.api.mapper.BorrowerMapper;
 import com.wwfinance.api.mapper.DictMapper;
+import com.wwfinance.api.mapper.IntegralGradeMapper;
 import com.wwfinance.api.mapper.LendMapper;
 import com.wwfinance.api.mapper.LendReturnMapper;
 import com.wwfinance.api.mapper.UserMapper;
@@ -26,6 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -53,6 +56,9 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
     @Autowired
     private LendReturnMapper lendReturnMapper;
 
+    @Autowired
+    private IntegralGradeMapper integralGradeMapper;
+
     /**
      * 获取借款申请审批状态：查该用户最近一条借款信息的 status
      */
@@ -69,13 +75,14 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
     }
 
     /**
-     * 获取可借额度：
-     * 借款人认证通过后，根据月收入档位（income）映射可借额度。
-     * 说明：额度 = 月收入 × 12（接近银行消费贷/房贷口径）：
+     * 获取可借额度 = 收入档位额度 × 积分等级系数
+     * 收入档位（月收入×12，单位：元）：
      *      1→3千×12=3.6万，2→8千×12=9.6万，3→2万×12=24万，4→4万×12=48万，
      *      5→8万×12=96万，6→15万×12=180万；
      *      7/8 为企业主专属档（大额经营贷，不按个人月收入×12）：
      *      7→500万，8→2000万。
+     * 积分等级系数（integral_grade.borrow_coefficient，管理端可配置）：
+     *      等级越高系数越大 → 可借额度越高（标准1.0 / 银卡1.1 / 金卡1.2 / 白金1.3 / 钻石1.5 / 黑金2.0）
      */
     @Override
     public BigDecimal getBorrowAmount(Long userId) {
@@ -99,7 +106,47 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
             case 8: amount = new BigDecimal(20000000); break;
             default: amount = new BigDecimal(0);
         }
+        // 积分等级系数加成：等级越高额度越高
+        BigDecimal coefficient = getGradeCoefficient(userId);
+        if (coefficient != null) {
+            amount = amount.multiply(coefficient).setScale(0, RoundingMode.HALF_UP);
+        }
         return amount;
+    }
+
+    /**
+     * 查询用户当前积分等级的可借额度系数（查不到按 1.0 处理）
+     */
+    private BigDecimal getGradeCoefficient(Long userId) {
+        IntegralGrade grade = getCurrentGrade(userId);
+        return grade == null || grade.getBorrowCoefficient() == null
+                ? BigDecimal.ONE : grade.getBorrowCoefficient();
+    }
+
+    /**
+     * 查询用户当前积分等级（按 User.integral 总积分匹配 integral_grade 区间）
+     */
+    private IntegralGrade getCurrentGrade(Long userId) {
+        try {
+            User user = userMapper.selectById(userId);
+            if (user == null || user.getIntegral() == null) {
+                return null;
+            }
+            long integral = user.getIntegral();
+            List<IntegralGrade> grades = integralGradeMapper.selectList(
+                    new LambdaQueryWrapper<IntegralGrade>().apply("is_deleted = 0"));
+            if (grades != null) {
+                for (IntegralGrade g : grades) {
+                    if (g.getIntegralStart() != null && g.getIntegralEnd() != null
+                            && integral >= g.getIntegralStart() && integral <= g.getIntegralEnd()) {
+                        return g;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("查询用户积分等级失败: userId={}, err={}", userId, e.getMessage());
+        }
+        return null;
     }
 
     /**
@@ -115,14 +162,31 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
         if (user.getUserType() != null && user.getUserType() != 2) {
             throw new BusinessException("仅借款人身份可申请借款，投资人无法借款");
         }
-        // 校验可借额度：借款人认证通过后按收入档位映射（未认证通过额度为 0）
+        // 校验可借额度：收入档位 × 积分等级系数（未认证通过额度为 0）
         BigDecimal limit = getBorrowAmount(userId);
         if (borrowInfo.getAmount() == null || borrowInfo.getAmount().compareTo(limit) > 0) {
             throw new BusinessException("借款金额超过可借额度 " + limit + " 元");
         }
+        // 利率下限：积分等级越高最低利率越低，申请利率不得低于等级利率
+        BigDecimal gradeRate = getGradeRate(userId);
+        if (gradeRate != null) {
+            if (borrowInfo.getBorrowYearRate() == null) {
+                borrowInfo.setBorrowYearRate(gradeRate);
+            } else if (borrowInfo.getBorrowYearRate().compareTo(gradeRate) < 0) {
+                borrowInfo.setBorrowYearRate(gradeRate);
+            }
+        }
         borrowInfo.setUserId(userId);
         borrowInfo.setStatus(BorrowInfoStatusEnum.CHECK_RUN.getStatus()); // 1 审核中
         this.save(borrowInfo);
+    }
+
+    /**
+     * 查询用户当前积分等级的最低年利率（小数，查不到返回 null）
+     */
+    private BigDecimal getGradeRate(Long userId) {
+        IntegralGrade grade = getCurrentGrade(userId);
+        return grade == null ? null : grade.getBorrowRate();
     }
 
     // ==================== 管理后台 ====================

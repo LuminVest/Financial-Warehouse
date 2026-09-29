@@ -36,6 +36,8 @@ public class IntegralGradeServiceImpl extends ServiceImpl<IntegralGradeMapper, I
                         .setMinScore(g.getIntegralStart())
                         .setMaxScore(g.getIntegralEnd())
                         .setBorrowLimit(g.getBorrowAmount())
+                        .setBorrowCoefficient(g.getBorrowCoefficient())
+                        .setBorrowRate(g.getBorrowRate())
                         .setCreateTime(g.getCreateTime()))
                 .collect(Collectors.toList());
         Map<String, Object> data = new HashMap<>();
@@ -45,18 +47,22 @@ public class IntegralGradeServiceImpl extends ServiceImpl<IntegralGradeMapper, I
     }
 
     @Override
-    public void addForAdmin(String levelName, Long minScore, Long maxScore, BigDecimal borrowLimit) {
+    public void addForAdmin(String levelName, Long minScore, Long maxScore, BigDecimal borrowLimit,
+                            BigDecimal borrowCoefficient, BigDecimal borrowRate) {
         IntegralGrade grade = new IntegralGrade();
         grade.setGradeName(levelName);
         grade.setIntegralStart(minScore);
         grade.setIntegralEnd(maxScore);
         grade.setBorrowAmount(borrowLimit);
+        grade.setBorrowCoefficient(borrowCoefficient == null ? BigDecimal.ONE : borrowCoefficient);
+        grade.setBorrowRate(borrowRate);
         grade.setDeleted(false);
         this.save(grade);
     }
 
     @Override
-    public void updateForAdmin(Long id, String levelName, Long minScore, Long maxScore, BigDecimal borrowLimit) {
+    public void updateForAdmin(Long id, String levelName, Long minScore, Long maxScore, BigDecimal borrowLimit,
+                               BigDecimal borrowCoefficient, BigDecimal borrowRate) {
         IntegralGrade grade = this.getById(id);
         if (grade == null) {
             throw new BusinessException("积分等级不存在");
@@ -65,6 +71,8 @@ public class IntegralGradeServiceImpl extends ServiceImpl<IntegralGradeMapper, I
         grade.setIntegralStart(minScore);
         grade.setIntegralEnd(maxScore);
         grade.setBorrowAmount(borrowLimit);
+        grade.setBorrowCoefficient(borrowCoefficient);
+        grade.setBorrowRate(borrowRate);
         this.updateById(grade);
     }
 

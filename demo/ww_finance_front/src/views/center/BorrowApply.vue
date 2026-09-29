@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import request from '@/utils/request'
 import { getBorrowAmount, getBorrowInfoStatus, saveBorrowInfo } from '@/api/borrowInfo'
 
 const router = useRouter()
@@ -9,6 +10,8 @@ const amount = ref(0)
 const status = ref<number | null>(null)
 const loading = ref(false)
 const submitting = ref(false)
+// 当前积分等级信息（额度系数/最低利率由管理端配置）
+const gradeInfo = ref<{ levelName?: string; borrowRate?: number; borrowCoefficient?: number } | null>(null)
 
 const form = reactive({
   amount: 1000,
@@ -22,11 +25,25 @@ const statusText = computed(() => {
   const map: Record<number, string> = { 0: '未提交', 1: '审核中', 2: '已通过', [-1]: '已拒绝' }
   return map[status.value ?? 0] ?? '未知'
 })
+// 年利率可填下限 = 当前等级最低利率（后端也会强制）
+const minRate = computed(() => {
+  const r = gradeInfo.value?.borrowRate
+  return typeof r === 'number' && r > 0 ? r : 0.04
+})
 async function load() {
   loading.value = true
   try {
     amount.value = (await getBorrowAmount()) as unknown as number
     status.value = (await getBorrowInfoStatus()) as unknown as number
+    gradeInfo.value = (await request.get('/api/user/center/integral/info')) as unknown as {
+      levelName?: string
+      borrowRate?: number
+      borrowCoefficient?: number
+    }
+    // 表单默认利率不低于等级最低利率
+    if (gradeInfo.value && typeof gradeInfo.value.borrowRate === 'number') {
+      form.borrowYearRate = Math.max(form.borrowYearRate, gradeInfo.value.borrowRate)
+    }
   } finally {
     loading.value = false
   }
@@ -99,6 +116,10 @@ onMounted(load)
             <span class="unit">元</span>
             <span class="limit-tip">您最多可借款{{ Number(amount).toLocaleString() }}元</span>
           </div>
+          <div v-if="gradeInfo?.levelName" class="grade-tip">
+            当前等级：<el-tag size="small" type="warning">{{ gradeInfo.levelName }}</el-tag>
+            额度系数 x{{ gradeInfo.borrowCoefficient ?? 1 }}（等级越高，额度越高）
+          </div>
         </el-form-item>
         <el-form-item label="期数">
           <el-select v-model="form.period" style="width: 200px">
@@ -128,7 +149,7 @@ onMounted(load)
           <div class="amount-row">
             <el-input-number
               v-model="form.borrowYearRate"
-              :min="0.04"
+              :min="minRate"
               :max="0.24"
               :step="0.01"
               :precision="2"
@@ -136,7 +157,9 @@ onMounted(load)
               style="width: 120px"
             />
             <span class="unit">%</span>
-            <span class="limit-tip">年利率越高，借款越容易成功</span>
+            <span class="limit-tip">
+              年利率越高，借款越容易成功；当前等级最低利率 {{ (minRate * 100).toFixed(1) }}%
+            </span>
           </div>
         </el-form-item>
       </div>
@@ -195,6 +218,14 @@ onMounted(load)
 .amount-row .limit-tip {
   font-size: 12px;
   color: #999;
+}
+.grade-tip {
+  font-size: 12px;
+  color: #666;
+  margin-top: 6px;
+}
+.grade-tip .el-tag {
+  margin: 0 4px;
 }
 .limit-card {
   background: #fff7e6;
