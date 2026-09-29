@@ -45,4 +45,17 @@ public interface LendReturnService extends IService<LendReturn> {
      */
     String notifyRepayment(Map<String, Object> paramMap);
 
+    /**
+     * 还款入账核心（银行回调 / 定时任务共用，幂等）：
+     * 更新还款计划已归还 → 借款人本地账户扣减 → 写还款流水
+     * → 同步回款明细 → 投资人入账 → 写回款流水 + 加积分
+     */
+    void settleRepayment(LendReturn plan);
+
+    /**
+     * 定时任务：自动处理到期未还的还款计划。
+     * 余额充足 → 自动代扣入账；余额不足 → 标记逾期。
+     */
+    void autoProcessDuePlans();
+
 }

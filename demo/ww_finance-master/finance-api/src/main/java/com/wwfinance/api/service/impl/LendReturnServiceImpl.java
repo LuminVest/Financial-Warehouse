@@ -358,11 +358,34 @@ public class LendReturnServiceImpl extends ServiceImpl<LendReturnMapper, LendRet
             return "fail";
         }
 
-        // 6. 逾期标记：实际还款日晚于计划还款日
+        // 6. 执行还款入账（更新计划 + 扣款 + 回款明细 + 投资人入账 + 流水积分）
+        settleRepayment(plan);
+        return "success";
+    }
+
+    /**
+     * 还款入账核心（银行回调 / 定时任务共用，幂等）：
+     * 更新还款计划已归还 → 借款人本地账户扣减 → 写还款流水
+     * → 同步回款明细 → 投资人入账 → 写回款流水 + 加积分
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void settleRepayment(LendReturn plan) {
+        if (plan == null) {
+            log.warn("还款入账跳过: 还款计划为空");
+            return;
+        }
+        // 幂等：已归还直接跳过（避免银行重试 / 定时任务与手动还款重复入账）
+        if (plan.getStatus() != null && plan.getStatus() == STATUS_PAID) {
+            log.warn("还款入账重复，已忽略, returnNo={}", plan.getReturnNo());
+            return;
+        }
+
+        // 逾期标记：实际还款日晚于计划还款日
         LocalDateTime now = LocalDateTime.now();
         boolean overdue = plan.getReturnDate() != null && plan.getReturnDate().isBefore(now.toLocalDate());
 
-        // 7. 更新还款计划：已归还
+        // 更新还款计划：已归还
         plan.setStatus(STATUS_PAID);
         plan.setRealReturnTime(now);
         if (overdue) {
@@ -371,17 +394,17 @@ public class LendReturnServiceImpl extends ServiceImpl<LendReturnMapper, LendRet
         }
         this.updateById(plan);
         log.info("还款到账, returnNo={}, lendId={}, currentPeriod={}, total={}, 逾期={}",
-                returnNo, plan.getLendId(), plan.getCurrentPeriod(), plan.getTotal(), overdue);
+                plan.getReturnNo(), plan.getLendId(), plan.getCurrentPeriod(), plan.getTotal(), overdue);
 
-        // 8. 借款人本地账户扣减（与银行托管账户扣款同步）
+        // 借款人本地账户扣减（与银行托管账户扣款同步）
         debitBorrower(plan.getUserId(), plan.getTotal() == null ? BigDecimal.ZERO : plan.getTotal());
 
         // 埋点：还款流水（借款人支出，不计积分）
-        transFlowService.addFlow(plan.getUserId(), 6, returnNo,
+        transFlowService.addFlow(plan.getUserId(), 6, plan.getReturnNo(),
                 plan.getTotal() == null ? BigDecimal.ZERO : plan.getTotal(),
                 "第" + plan.getCurrentPeriod() + "期还款");
 
-        // 9. 同步该期回款明细 + 投资人入账
+        // 同步该期回款明细 + 投资人入账
         List<LendItemReturn> details = lendItemReturnService.list(new LambdaQueryWrapper<LendItemReturn>()
                 .eq(LendItemReturn::getLendId, plan.getLendId())
                 .eq(LendItemReturn::getCurrentPeriod, plan.getCurrentPeriod())
@@ -403,14 +426,59 @@ public class LendReturnServiceImpl extends ServiceImpl<LendReturnMapper, LendRet
                 creditInvestor(detail.getInvestUserId(), detail.getTotal() == null ? BigDecimal.ZERO : detail.getTotal());
                 // 埋点：回款流水 + 积分（1元=1分，幂等键=还款单号+回款明细id）
                 BigDecimal returnAmt = detail.getTotal() == null ? BigDecimal.ZERO : detail.getTotal();
-                transFlowService.addFlow(detail.getInvestUserId(), 4, returnNo + "_" + detail.getId(),
+                transFlowService.addFlow(detail.getInvestUserId(), 4, plan.getReturnNo() + "_" + detail.getId(),
                         returnAmt, "第" + plan.getCurrentPeriod() + "期回款");
                 userIntegralService.addIntegral(detail.getInvestUserId(), returnAmt.longValue(),
-                        "回款" + returnNo + "_" + detail.getId());
+                        "回款" + plan.getReturnNo() + "_" + detail.getId());
             }
         }
-        log.info("还款同步回款明细完成: returnNo={}, 投资人={}人", returnNo, details.size());
-        return "success";
+        log.info("还款同步回款明细完成: returnNo={}, 投资人={}人", plan.getReturnNo(), details.size());
+    }
+
+    /**
+     * 定时任务：自动处理到期未还的还款计划。
+     * 借款人本地账户余额充足 → 自动代扣入账（settleRepayment）；
+     * 余额不足 → 标记逾期（is_overdue=1, overdue_total=本期应还）。
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void autoProcessDuePlans() {
+        LocalDate today = LocalDate.now();
+        List<LendReturn> duePlans = this.list(new LambdaQueryWrapper<LendReturn>()
+                .eq(LendReturn::getStatus, STATUS_UNPAID)
+                .apply("is_deleted = 0")
+                .le(LendReturn::getReturnDate, today));
+        if (duePlans == null || duePlans.isEmpty()) {
+            return;
+        }
+        log.info("定时还款扫描: 到期未还 {} 期", duePlans.size());
+        for (LendReturn plan : duePlans) {
+            try {
+                // 校验借款人本地账户余额是否足以代扣本期应还
+                UserAccount account = plan.getUserId() == null ? null
+                        : userAccountService.getOne(new LambdaQueryWrapper<UserAccount>()
+                                .eq(UserAccount::getUserId, plan.getUserId()));
+                BigDecimal balance = account == null || account.getAmount() == null
+                        ? BigDecimal.ZERO : account.getAmount();
+                BigDecimal total = plan.getTotal() == null ? BigDecimal.ZERO : plan.getTotal();
+                if (balance.compareTo(total) >= 0) {
+                    // 余额充足：自动代扣还款 + 回款分润
+                    settleRepayment(plan);
+                } else {
+                    // 余额不足：标记逾期（不重复标记）
+                    if (plan.getIsOverdue() == null || !plan.getIsOverdue()) {
+                        plan.setIsOverdue(true);
+                        plan.setOverdueTotal(total);
+                        this.updateById(plan);
+                        log.warn("定时还款余额不足, 标记逾期: returnNo={}, lendId={}, currentPeriod={}, 应还={}, 余额={}",
+                                plan.getReturnNo(), plan.getLendId(), plan.getCurrentPeriod(), total, balance);
+                    }
+                }
+            } catch (Exception e) {
+                log.error("定时还款单期处理失败: returnNo={}, lendId={}, currentPeriod={}, err={}",
+                        plan.getReturnNo(), plan.getLendId(), plan.getCurrentPeriod(), e.getMessage());
+            }
+        }
     }
 
     /** 投资人回款入账（无账户则新建） */
