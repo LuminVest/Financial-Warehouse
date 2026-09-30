@@ -1,18 +1,52 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { saveBorrower, getBorrowerStatus, uploadFile, type BorrowerAttach } from '@/api/borrower'
+import { listByDictCode, type DictItem } from '@/api/dict'
 
 const router = useRouter()
 
 const status = ref<number | null>(null)
+const auditRemark = ref('')
 const loading = ref(false)
 const submitting = ref(false)
+const formRef = ref<FormInstance>()
+
+// 下拉选项（从字典表动态加载）
+const educationOptions = ref<DictItem[]>([])
+const industryOptions = ref<DictItem[]>([])
+const incomeOptions = ref<DictItem[]>([])
+const returnSourceOptions = ref<DictItem[]>([])
+const relationOptions = ref<DictItem[]>([])
+
+// 表单校验规则：失焦即校验，错误红字显示在字段下方
+const rules: FormRules = {
+  age: [
+    { required: true, message: '请填写年龄', trigger: 'blur' },
+    {
+      validator: (_rule: unknown, value: unknown, callback: (e?: Error) => void) => {
+        const n = Number(value)
+        if (!Number.isInteger(n) || n < 18 || n > 70) {
+          callback(new Error('年龄需在 18-70 之间'))
+          return
+        }
+        callback()
+      },
+      trigger: 'blur',
+    },
+  ],
+  employer: [{ required: true, message: '请填写工作单位', trigger: 'blur' }],
+  contactsName: [{ required: true, message: '请填写联系人姓名', trigger: 'blur' }],
+  contactsMobile: [
+    { required: true, message: '请填写联系人手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '联系人手机号格式不正确（需为 11 位手机号）', trigger: 'blur' },
+  ],
+}
 
 const form = reactive({
   sex: 1,
-  age: 25,
+  age: null as number | null,
   education: 1,
   isMarry: 1,
   industry: 1,
@@ -71,7 +105,21 @@ async function handleUploadFile(key: string, file: File | undefined) {
 async function load() {
   loading.value = true
   try {
-    status.value = (await getBorrowerStatus()) as unknown as number
+    const info = (await getBorrowerStatus()) as unknown as { status: number; auditRemark: string | null }
+    status.value = info.status
+    auditRemark.value = info.auditRemark ?? ''
+    const [edu, ind, inc, rs, rel] = await Promise.all([
+      listByDictCode('education'),
+      listByDictCode('industry'),
+      listByDictCode('income'),
+      listByDictCode('returnSource'),
+      listByDictCode('relation'),
+    ])
+    educationOptions.value = edu as unknown as DictItem[]
+    industryOptions.value = ind as unknown as DictItem[]
+    incomeOptions.value = inc as unknown as DictItem[]
+    returnSourceOptions.value = rs as unknown as DictItem[]
+    relationOptions.value = rel as unknown as DictItem[]
   } finally {
     loading.value = false
   }
@@ -79,10 +127,8 @@ async function load() {
 
 // 材料上传：先调 OSS 拿 URL，再随认证提交
 async function handleSubmit() {
-  if (!form.contactsName || !form.contactsMobile) {
-    ElMessage.warning('请填写联系人和联系人手机号')
-    return
-  }
+  const valid = await formRef.value?.validate().catch(() => false)
+  if (!valid) return
   const missing = attachItems.value.filter((i) => i.required && !i.url)
   if (missing.length > 0) {
     ElMessage.warning(`请上传必传材料：${missing.map((i) => i.label).join('、')}`)
@@ -93,7 +139,7 @@ async function handleSubmit() {
     const attachList: BorrowerAttach[] = attachItems.value
       .filter((i) => i.url)
       .map((i) => ({ imageType: i.key, imageUrl: i.url, imageName: i.fileName }))
-    await saveBorrower({ ...form, borrowerAttachList: attachList })
+    await saveBorrower({ ...form, age: Number(form.age), borrowerAttachList: attachList })
     ElMessage.success('认证资料已提交，等待管理端审核')
     await load()
   } finally {
@@ -115,61 +161,62 @@ onMounted(load)
       <el-step title="等待认证结果" description="查看认证状态" />
     </el-steps>
 
-    <el-form v-if="status !== 2" v-loading="loading" label-position="top" class="auth-form">
+    <!-- 认证中：显示审核中状态，不展示可编辑表单 -->
+    <el-result v-if="status === 1" icon="info" title="认证审核中" sub-title="您的认证资料已提交，等待管理端审核，请耐心等待">
+      <template #extra>
+        <el-button type="primary" @click="router.push('/home')">返回首页</el-button>
+      </template>
+    </el-result>
+
+    <el-form v-else-if="status !== 2" ref="formRef" :model="form" :rules="rules" v-loading="loading" label-position="top" class="auth-form">
+      <el-alert
+        v-if="status === -1"
+        type="warning"
+        :closable="false"
+        show-icon
+        title="上次认证未通过"
+        :description="auditRemark ? `审核意见：${auditRemark}。请按意见修改认证信息后重新提交` : '请修改认证信息后重新提交'"
+        style="margin-bottom: 20px"
+      />
       <div class="section">
         <div class="section-title">个人基本信息</div>
         <div class="grid-3">
-          <el-form-item label="年龄">
-            <el-input-number v-model="form.age" :min="18" :max="70" style="width: 100%" :controls="false" />
+          <el-form-item label="年龄" prop="age" required>
+            <el-input-number v-model="form.age" style="width: 100%" :controls="false" />
           </el-form-item>
-          <el-form-item label="性别">
+          <el-form-item label="性别" required>
             <el-select v-model="form.sex" style="width: 100%">
               <el-option label="男" :value="1" />
               <el-option label="女" :value="0" />
             </el-select>
           </el-form-item>
-          <el-form-item label="婚否">
+          <el-form-item label="婚否" required>
             <el-select v-model="form.isMarry" style="width: 100%">
               <el-option label="已婚" :value="1" />
               <el-option label="未婚" :value="0" />
             </el-select>
           </el-form-item>
-          <el-form-item label="学历">
-            <el-select v-model="form.education" style="width: 100%">
-              <el-option label="高中及以下" :value="1" />
-              <el-option label="大专" :value="2" />
-              <el-option label="本科" :value="3" />
-              <el-option label="硕士及以上" :value="4" />
+          <el-form-item label="学历" required>
+            <el-select v-model="form.education" style="width: 100%" placeholder="请选择学历">
+              <el-option v-for="d in educationOptions" :key="d.value" :label="d.name" :value="d.value" />
             </el-select>
           </el-form-item>
-          <el-form-item label="行业">
-            <el-select v-model="form.industry" style="width: 100%">
-              <el-option label="互联网/IT" :value="1" />
-              <el-option label="制造业" :value="2" />
-              <el-option label="教育/医疗" :value="3" />
-              <el-option label="个体经营" :value="4" />
+          <el-form-item label="行业" required>
+            <el-select v-model="form.industry" style="width: 100%" placeholder="请选择行业">
+              <el-option v-for="d in industryOptions" :key="d.value" :label="d.name" :value="d.value" />
             </el-select>
           </el-form-item>
-          <el-form-item label="月收入">
-            <el-select v-model="form.income" style="width: 100%">
-              <el-option label="0-3000" :value="1" />
-              <el-option label="3000-10000" :value="2" />
-              <el-option label="10000-30000" :value="3" />
-              <el-option label="30000-50000" :value="4" />
-              <el-option label="50000-100000" :value="5" />
-              <el-option label="100000以上" :value="6" />
-              <el-option label="200000-500000（企业主）" :value="7" />
-              <el-option label="500000以上（大型企业主）" :value="8" />
+          <el-form-item label="月收入" required>
+            <el-select v-model="form.income" style="width: 100%" placeholder="请选择月收入">
+              <el-option v-for="d in incomeOptions" :key="d.value" :label="d.name" :value="d.value" />
             </el-select>
           </el-form-item>
-          <el-form-item label="还款来源">
-            <el-select v-model="form.returnSource" style="width: 100%">
-              <el-option label="工资收入" :value="1" />
-              <el-option label="经营收入" :value="2" />
-              <el-option label="其他" :value="3" />
+          <el-form-item label="还款来源" required>
+            <el-select v-model="form.returnSource" style="width: 100%" placeholder="请选择还款来源">
+              <el-option v-for="d in returnSourceOptions" :key="d.value" :label="d.name" :value="d.value" />
             </el-select>
           </el-form-item>
-          <el-form-item label="工作单位">
+          <el-form-item label="工作单位" prop="employer" required>
             <el-input v-model="form.employer" placeholder="当前工作单位" maxlength="50" />
           </el-form-item>
         </div>
@@ -178,18 +225,15 @@ onMounted(load)
       <div class="section">
         <div class="section-title">联系人信息</div>
         <div class="grid-3">
-          <el-form-item label="联系人姓名">
+          <el-form-item label="联系人姓名" prop="contactsName" required>
             <el-input v-model="form.contactsName" placeholder="紧急联系人" />
           </el-form-item>
-          <el-form-item label="联系人手机">
-            <el-input v-model="form.contactsMobile" placeholder="11 位手机号" />
+          <el-form-item label="联系人手机" prop="contactsMobile" required>
+            <el-input v-model="form.contactsMobile" placeholder="11 位手机号" maxlength="11" />
           </el-form-item>
-          <el-form-item label="联系人关系">
-            <el-select v-model="form.contactsRelation" style="width: 100%">
-              <el-option label="配偶" :value="1" />
-              <el-option label="父母" :value="2" />
-              <el-option label="朋友" :value="3" />
-              <el-option label="同事" :value="4" />
+          <el-form-item label="联系人关系" required>
+            <el-select v-model="form.contactsRelation" style="width: 100%" placeholder="请选择联系人关系">
+              <el-option v-for="d in relationOptions" :key="d.value" :label="d.name" :value="d.value" />
             </el-select>
           </el-form-item>
         </div>
@@ -288,7 +332,7 @@ onMounted(load)
   white-space: nowrap;
 }
 .attach-required {
-  color: #409eff;
+  color: #f56c6c;
   margin-left: 2px;
 }
 .submit-btn {

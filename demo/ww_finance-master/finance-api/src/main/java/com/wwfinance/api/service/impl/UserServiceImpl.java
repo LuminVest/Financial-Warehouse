@@ -206,4 +206,33 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             return "";
         }
     }
+
+    @Override
+    public void updateProfile(Long userId, String nickName, Integer gender) {
+        if (userId == null) {
+            throw new BusinessException("未登录");
+        }
+        User user = this.getById(userId);
+        if (user == null) {
+            throw new BusinessException("用户不存在");
+        }
+        if (nickName == null || nickName.trim().isEmpty()) {
+            throw new BusinessException("昵称不能为空");
+        }
+        nickName = nickName.trim();
+        if (nickName.length() > 20) {
+            throw new BusinessException("昵称最长 20 个字符");
+        }
+        if (gender != null && (gender < 0 || gender > 2)) {
+            throw new BusinessException("性别参数不合法");
+        }
+        User update = new User();
+        update.setId(userId);
+        update.setNickName(nickName);
+        if (gender != null) {
+            update.setGender(gender);
+        }
+        this.updateById(update);
+        log.info("用户更新个人资料: userId={}, nickName={}, gender={}", userId, nickName, gender);
+    }
 }

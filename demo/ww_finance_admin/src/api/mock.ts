@@ -6,17 +6,16 @@ export interface PointLevel {
   levelName: string
   minScore: number
   maxScore: number
-  borrowLimit: number
   borrowCoefficient: number
   borrowRate: number
   createTime: string
 }
 
 export const mockPointLevels: PointLevel[] = [
-  { id: 1, levelName: '青铜', minScore: 10, maxScore: 50, borrowLimit: 10000, createTime: '2020-12-08 17:29' },
-  { id: 2, levelName: '白银', minScore: 51, maxScore: 100, borrowLimit: 50000, createTime: '2020-12-08 17:42' },
-  { id: 3, levelName: '黄金', minScore: 101, maxScore: 300, borrowLimit: 100000, createTime: '2020-12-08 17:57' },
-  { id: 4, levelName: '钻石', minScore: 301, maxScore: 1000, borrowLimit: 300000, createTime: '2024-09-04 19:28' },
+  { id: 1, levelName: '青铜', minScore: 10, maxScore: 50, borrowCoefficient: 1, borrowRate: 0.12, createTime: '2020-12-08 17:29' },
+  { id: 2, levelName: '白银', minScore: 51, maxScore: 100, borrowCoefficient: 1.2, borrowRate: 0.1, createTime: '2020-12-08 17:42' },
+  { id: 3, levelName: '黄金', minScore: 101, maxScore: 300, borrowCoefficient: 1.5, borrowRate: 0.08, createTime: '2020-12-08 17:57' },
+  { id: 4, levelName: '钻石', minScore: 301, maxScore: 1000, borrowCoefficient: 2, borrowRate: 0.06, createTime: '2024-09-04 19:28' },
 ]
 
 export interface Member {
@@ -56,10 +55,18 @@ export interface Borrower {
   usedLimit: number // 已用额度
   bankCard: string
   employer: string // 工作单位
+  educationText?: string // 学历（字典翻译）
+  industryText?: string // 行业（字典翻译）
+  returnSourceText?: string // 还款来源（字典翻译）
+  contactsName?: string // 联系人姓名
+  contactsMobile?: string // 联系人手机号
+  contactsRelationText?: string // 联系人关系（字典翻译）
   monthlyIncome: number // 月收入
+  incomeText?: string // 月收入档位文字（字典翻译，如 500000以上）
   createTime: string
   auditTime: string
   remark: string
+  attachList?: Array<{ imageType: string; imageUrl: string; imageName: string }> // 认证材料附件
 }
 
 export const mockBorrowers: Borrower[] = [
@@ -106,14 +113,15 @@ export interface LoanProject {
   publishTime: string
   endTime: string // 募集截止时间
   createTime: string
-  remark: string
+  serviceRate?: number // 平台服务费率(%)
+  serviceFee: number // 平台服务费
 }
 
 export const mockLoanProjects: LoanProject[] = [
-  { id: 1, title: '短期周转标A', borrowerName: '张三', borrowerId: 1, amount: 100000, rate: 8.5, term: 90, raisedAmount: 100000, progress: 100, status: 2, purpose: '短期周转', riskLevel: 1, publishTime: '2024-08-01 10:00', endTime: '2024-08-10 10:00', createTime: '2024-07-30 16:00', remark: '优质标的，按时还款' },
-  { id: 2, title: '经营贷标B', borrowerName: '李四', borrowerId: 2, amount: 500000, rate: 12.0, term: 180, raisedAmount: 325000, progress: 65, status: 1, purpose: '店铺装修', riskLevel: 2, publishTime: '2024-08-15 15:30', endTime: '2024-08-25 15:30', createTime: '2024-08-14 09:00', remark: '' },
-  { id: 3, title: '消费贷标C', borrowerName: '赵六', borrowerId: 3, amount: 10000, rate: 10.0, term: 30, raisedAmount: 0, progress: 0, status: 0, purpose: '日常消费', riskLevel: 3, publishTime: '', endTime: '', createTime: '2024-09-05 15:00', remark: '待发布，风险较高' },
-  { id: 4, title: '教育贷标D', borrowerName: '孙七', borrowerId: 5, amount: 30000, rate: 9.0, term: 60, raisedAmount: 15000, progress: 50, status: 1, purpose: '学费贷款', riskLevel: 1, publishTime: '2024-09-01 10:00', endTime: '2024-09-11 10:00', createTime: '2024-08-31 14:00', remark: '' },
+  { id: 1, title: '短期周转标A', borrowerName: '张三', borrowerId: 1, amount: 100000, rate: 8.5, term: 90, raisedAmount: 100000, progress: 100, status: 2, purpose: '短期周转', riskLevel: 1, publishTime: '2024-08-01 10:00', endTime: '2024-08-10 10:00', createTime: '2024-07-30 16:00', serviceFee: 1000 },
+  { id: 2, title: '经营贷标B', borrowerName: '李四', borrowerId: 2, amount: 500000, rate: 12.0, term: 180, raisedAmount: 325000, progress: 65, status: 1, purpose: '店铺装修', riskLevel: 2, publishTime: '2024-08-15 15:30', endTime: '2024-08-25 15:30', createTime: '2024-08-14 09:00', serviceFee: 0 },
+  { id: 3, title: '消费贷标C', borrowerName: '赵六', borrowerId: 3, amount: 10000, rate: 10.0, term: 30, raisedAmount: 0, progress: 0, status: 0, purpose: '日常消费', riskLevel: 3, publishTime: '', endTime: '', createTime: '2024-09-05 15:00', serviceFee: 0 },
+  { id: 4, title: '教育贷标D', borrowerName: '孙七', borrowerId: 5, amount: 30000, rate: 9.0, term: 60, raisedAmount: 15000, progress: 50, status: 1, purpose: '学费贷款', riskLevel: 1, publishTime: '2024-09-01 10:00', endTime: '2024-09-11 10:00', createTime: '2024-08-31 14:00', serviceFee: 0 },
 ]
 
 // ===== 标的投资记录 =====
@@ -215,6 +223,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant' // 用户提问 / AI回答
   content: string
   timestamp: string
+  createTime?: string // 兼容后端会话详情接口返回的时间字段
 }
 
 export interface ChatSession {

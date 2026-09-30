@@ -259,6 +259,11 @@ onMounted(fetchList)
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="平台服务费" width="110" align="center">
+          <template #default="{ row }">
+            ¥{{ (row.serviceFee ?? 0).toLocaleString() }}
+          </template>
+        </el-table-column>
         <el-table-column label="募集进度" min-width="160">
           <template #default="{ row }">
             <el-progress :percentage="row.progress" :stroke-width="14" :text-inside="true" />
@@ -373,7 +378,8 @@ onMounted(fetchList)
         <el-descriptions-item label="创建时间">{{ detailData.createTime }}</el-descriptions-item>
         <el-descriptions-item label="发布时间">{{ detailData.publishTime || '—' }}</el-descriptions-item>
         <el-descriptions-item label="募集截止" :span="2">{{ detailData.endTime || '—' }}</el-descriptions-item>
-        <el-descriptions-item label="备注" :span="2">{{ detailData.remark || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="平台服务费率">{{ detailData.serviceRate != null ? detailData.serviceRate + '%' : '—' }}</el-descriptions-item>
+        <el-descriptions-item label="平台服务费">¥{{ (detailData.serviceFee ?? 0).toLocaleString() }}</el-descriptions-item>
       </el-descriptions>
 
       <!-- 募集进度条 -->

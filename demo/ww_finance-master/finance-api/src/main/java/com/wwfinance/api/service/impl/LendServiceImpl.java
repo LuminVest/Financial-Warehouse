@@ -159,12 +159,20 @@ public class LendServiceImpl extends ServiceImpl<LendMapper, Lend> implements Le
             throw new RuntimeException("借款人未绑定托管账户，无法放款");
         }
 
+        // 平台服务费 = 借款金额 × 服务费率（1%），放款时一次性扣除
+        BigDecimal serviceFee = BigDecimal.ZERO;
+        if (lend.getServiceRate() != null) {
+            serviceFee = lend.getAmount().multiply(lend.getServiceRate())
+                    .setScale(2, java.math.RoundingMode.HALF_UP);
+        }
+
         // 组装旺旺银行放款参数（同步接口，参数 key 对齐银行 AgreeAccountLendProject）
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("agentId", HfbConst.AGENT_ID);
         paramMap.put("agentProjectCode", lend.getLendNo());
         paramMap.put("agentBillNo", LendNoUtils.getLoanNo());
-        paramMap.put("mchFee", "0");
+        // 服务费通过银行 mchFee 扣减：银行划转金额 = Σ投资额 - mchFee（借款人在银行看到实得金额）
+        paramMap.put("mchFee", serviceFee.toPlainString());
         paramMap.put("hyFee", "0");
         paramMap.put("timestamp", RequestHelper.getTimestamp());
         paramMap.put("sign", RequestHelper.getSign(paramMap));
@@ -178,18 +186,28 @@ public class LendServiceImpl extends ServiceImpl<LendMapper, Lend> implements Le
         BigDecimal loanAmt = new BigDecimal(String.valueOf(result.get("voteAmt")));
         String loanNo = String.valueOf(paramMap.get("agentBillNo"));
 
-        // 借款人本地账户入账（与银行托管划转同步）
-        creditBorrower(lend.getUserId(), loanAmt);
+        // 借款人实得 = 银行放款额（已扣 mchFee 则为实得）；若银行未扣（返回全款），本地兜底扣服务费
+        BigDecimal actualAmt = loanAmt;
+        if (loanAmt.compareTo(lend.getAmount()) == 0 && serviceFee.compareTo(BigDecimal.ZERO) > 0) {
+            log.warn("银行未扣平台服务费, 本地兜底扣减: lendId={}, 放款额={}, 服务费={}", lendId, loanAmt, serviceFee);
+            actualAmt = loanAmt.subtract(serviceFee);
+        }
+
+        // 借款人本地账户入账（与银行托管划转同步，实得=放款额-服务费）
+        creditBorrower(lend.getUserId(), actualAmt);
 
         // 埋点：放款流水 + 积分（1元=1分，幂等键=放款单号）
-        transFlowService.addFlow(lend.getUserId(), 5, loanNo, loanAmt, "放款到账：" + lend.getTitle());
-        userIntegralService.addIntegral(lend.getUserId(), loanAmt.longValue(), "放款" + loanNo);
+        transFlowService.addFlow(lend.getUserId(), 5, loanNo, actualAmt,
+                "放款到账（已扣平台服务费" + serviceFee.toPlainString() + "元）：" + lend.getTitle());
+        userIntegralService.addIntegral(lend.getUserId(), actualAmt.longValue(), "放款" + loanNo);
 
-        // 标的置已放款 + 记录实际放款额
-        lend.setRealAmount(loanAmt);
+        // 标的置已放款 + 记录实际放款额与服务费
+        lend.setRealAmount(actualAmt);
+        lend.setServiceFee(serviceFee);
         lend.setStatus(LEND_STATUS_LOANED);
         this.updateById(lend);
-        log.info("放款成功, lendId={}, lendNo={}, loanAmt={}", lendId, lend.getLendNo(), loanAmt);
+        log.info("放款成功, lendId={}, lendNo={}, 放款额={}, 服务费={}, 借款人实得={}",
+                lendId, lend.getLendNo(), loanAmt, serviceFee, actualAmt);
     }
 
     /** 借款人放款入账（本地账本镜像，无账户则新建） */

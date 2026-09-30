@@ -49,7 +49,6 @@ const formData = reactive({
   levelName: '',
   minScore: 0,
   maxScore: 0,
-  borrowLimit: 0,
   borrowCoefficient: 1,
   borrowRate: 0.08,
 })
@@ -58,7 +57,6 @@ const formRules: FormRules = {
   levelName: [{ required: true, message: '请输入等级名称', trigger: 'blur' }],
   minScore: [{ required: true, message: '请输入最小积分', trigger: 'blur' }],
   maxScore: [{ required: true, message: '请输入最大积分', trigger: 'blur' }],
-  borrowLimit: [{ required: true, message: '请输入借款额度', trigger: 'blur' }],
   borrowCoefficient: [{ required: true, message: '请输入额度系数', trigger: 'blur' }],
   borrowRate: [{ required: true, message: '请输入最低年利率', trigger: 'blur' }],
 }
@@ -71,7 +69,7 @@ function openDialog(row?: PointLevel) {
     dialogTitle.value = '新增积分等级'
     Object.assign(formData, {
       id: 0, levelName: '', minScore: 0, maxScore: 0,
-      borrowLimit: 0, borrowCoefficient: 1, borrowRate: 0.08,
+      borrowCoefficient: 1, borrowRate: 0.08,
     })
   }
   dialogVisible.value = true
@@ -95,7 +93,6 @@ async function submitForm() {
           levelName: formData.levelName,
           minScore: formData.minScore,
           maxScore: formData.maxScore,
-          borrowLimit: formData.borrowLimit,
           borrowCoefficient: formData.borrowCoefficient,
           borrowRate: formData.borrowRate,
         })
@@ -139,11 +136,6 @@ onMounted(fetchList)
       <el-table :data="tableData" v-loading="loading" stripe border>
         <el-table-column type="index" label="序号" width="70" align="center" />
         <el-table-column prop="levelName" label="等级名称" min-width="120" />
-        <el-table-column label="借款额度" min-width="130" align="center">
-          <template #default="{ row }">
-            <span class="money">¥{{ row.borrowLimit.toLocaleString() }}</span>
-          </template>
-        </el-table-column>
         <el-table-column label="额度系数" min-width="90" align="center">
           <template #default="{ row }">{{ row.borrowCoefficient ?? 1 }}x</template>
         </el-table-column>
@@ -195,15 +187,6 @@ onMounted(fetchList)
         </el-form-item>
         <el-form-item label="最大积分" prop="maxScore">
           <el-input-number v-model="formData.maxScore" :min="0" controls-position="right" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="借款额度" prop="borrowLimit">
-          <el-input-number
-            v-model="formData.borrowLimit"
-            :min="0"
-            :step="1000"
-            controls-position="right"
-            style="width: 100%"
-          />
         </el-form-item>
         <el-form-item label="额度系数" prop="borrowCoefficient">
           <el-input-number

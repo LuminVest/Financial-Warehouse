@@ -13,6 +13,7 @@ import com.wwfinance.api.service.UserService;
 import com.wwfinance.api.utils.FormHelper;
 import com.wwfinance.api.utils.HfbConst;
 import com.wwfinance.api.utils.RequestHelper;
+import com.wwfinance.common.exception.BusinessException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +51,9 @@ public class UserBindServiceImpl extends ServiceImpl<UserBindMapper, UserBind> i
      */
     @Override
     public String commitBindUser(UserBindDTO userBindDTO, Long userId) {
+        // 0. 参数格式校验（防绕过前端直接调接口）
+        validateBindParam(userBindDTO);
+
         // 1. 查询是否已有绑定记录
         UserBind userBind = getBindByUserId(userId);
         if (userBind == null) {
@@ -87,6 +91,39 @@ public class UserBindServiceImpl extends ServiceImpl<UserBindMapper, UserBind> i
         String formStr = FormHelper.buildForm(HfbConst.USERBIND_URL, paramMap);
         log.info("构建用户绑定托管表单, userId={}, formStr={}", userId, formStr);
         return formStr;
+    }
+
+    /**
+     * 绑定参数校验：姓名、身份证（18 位）、银行卡号（16-19 位数字）、手机号（11 位）格式校验
+     */
+    private void validateBindParam(UserBindDTO dto) {
+        if (dto == null) {
+            throw new BusinessException("绑定参数不能为空");
+        }
+        if (dto.getName() == null || dto.getName().trim().isEmpty()) {
+            throw new BusinessException("请填写真实姓名");
+        }
+        if (dto.getIdCard() == null || dto.getIdCard().isEmpty()) {
+            throw new BusinessException("请填写身份证号");
+        }
+        if (!dto.getIdCard().matches("^\\d{17}[\\dXx]$")) {
+            throw new BusinessException("身份证号格式不正确（需为 18 位）");
+        }
+        if (dto.getBankNo() == null || dto.getBankNo().isEmpty()) {
+            throw new BusinessException("请填写银行卡号");
+        }
+        if (!dto.getBankNo().matches("^\\d{16,19}$")) {
+            throw new BusinessException("银行卡号格式不正确（需为 16-19 位数字）");
+        }
+        if (dto.getBankType() == null || dto.getBankType().trim().isEmpty()) {
+            throw new BusinessException("请选择绑定银行");
+        }
+        if (dto.getMobile() == null || dto.getMobile().isEmpty()) {
+            throw new BusinessException("请填写预留手机号");
+        }
+        if (!dto.getMobile().matches("^1[3-9]\\d{9}$")) {
+            throw new BusinessException("预留手机号格式不正确（需为 11 位手机号）");
+        }
     }
 
     /**

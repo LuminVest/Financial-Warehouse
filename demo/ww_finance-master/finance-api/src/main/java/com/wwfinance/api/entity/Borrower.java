@@ -125,6 +125,12 @@ public class Borrower implements Serializable {
     private Integer status;
 
     /**
+     * 审核备注（不通过原因，管理端审核时填写）
+     */
+    @TableField("audit_remark")
+    private String auditRemark;
+
+    /**
      * 创建时间
      */
     @TableField("create_time")

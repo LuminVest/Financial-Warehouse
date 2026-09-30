@@ -69,20 +69,6 @@ const formRules: FormRules = {
   baseUrl: [{ required: true, message: '请输入API地址', trigger: 'blur' }],
 }
 
-const providerOptions = [
-  { label: 'OpenAI', value: 'openai' },
-  { label: 'Anthropic (Claude)', value: 'anthropic' },
-  { label: '智谱 (GLM)', value: 'zhipu' },
-  { label: '通义千问 (Qwen)', value: 'qwen' },
-  { label: '百川 (Baichuan)', value: 'baichuan' },
-  { label: '本地部署', value: 'local' },
-]
-const typeOptions = [
-  { label: '对话模型 (Chat)', value: 'chat' },
-  { label: '嵌入模型 (Embedding)', value: 'embedding' },
-  { label: '重排模型 (Rerank)', value: 'rerank' },
-]
-
 function openDialog(row?: ModelConfig) {
   if (row) {
     dialogTitle.value = '编辑模型'
@@ -100,21 +86,6 @@ function openDialog(row?: ModelConfig) {
 function closeDialog() {
   dialogVisible.value = false
   formRef.value?.resetFields()
-}
-
-// 提供商变化时自动填充默认 API 地址
-function onProviderChange() {
-  const defaults: Record<string, string> = {
-    openai: 'https://api.openai.com/v1/chat/completions',
-    anthropic: 'https://api.anthropic.com/v1/messages',
-    zhipu: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-    qwen: 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation',
-    baichuan: 'https://api.baichuan-ai.com/v1/chat/completions',
-    local: 'http://localhost:8081/',
-  }
-  if (!formData.apiUrl || Object.values(defaults).includes(formData.apiUrl)) {
-    formData.apiUrl = defaults[formData.provider] || ''
-  }
 }
 
 async function submitForm() {
@@ -167,21 +138,6 @@ async function handleSetDefault(row: ModelConfig) {
   await setDefaultModel(row.id)
   ElMessage.success(`已将「${row.name}」设为默认模型`)
   fetchList()
-}
-
-// ------ 工具 ------
-const providerMap: Record<string, string> = {
-  openai: 'OpenAI',
-  anthropic: 'Anthropic',
-  zhipu: '智谱',
-  qwen: '通义千问',
-  baichuan: '百川',
-  local: '本地部署',
-}
-const typeMap: Record<string, { text: string; type: string }> = {
-  chat: { text: '对话', type: 'primary' },
-  embedding: { text: '嵌入', type: 'success' },
-  rerank: { text: '重排', type: 'warning' },
 }
 
 // ------ 生命周期 ------

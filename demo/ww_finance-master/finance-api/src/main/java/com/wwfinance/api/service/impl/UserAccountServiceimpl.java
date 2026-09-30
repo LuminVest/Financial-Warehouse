@@ -55,6 +55,19 @@ public class UserAccountServiceimpl extends ServiceImpl<UserAccountMapper, UserA
         if (userBind == null || StringUtils.isEmpty(userBind.getBindCode())) {
             throw new RuntimeException("用户未绑定托管账户，请先完成实名绑定");
         }
+        // 金额校验：必须为正数，且单次不超过 1000 万
+        BigDecimal amt;
+        try {
+            amt = new BigDecimal(chargeAmt);
+        } catch (Exception e) {
+            throw new RuntimeException("充值金额格式不正确");
+        }
+        if (amt.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("充值金额必须大于0");
+        }
+        if (amt.compareTo(new BigDecimal("10000000")) > 0) {
+            throw new RuntimeException("单次充值金额不能超过1000万元");
+        }
         // 生成商户订单号
         String agentBillNo = LendNoUtils.getChargeNo();
         // 组装参数

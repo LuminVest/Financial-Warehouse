@@ -17,6 +17,11 @@ public interface BorrowInfoService extends IService<BorrowInfo> {
     Integer getStatusByUserId(Long userId);
 
     /**
+     * 获取当前用户最近一次借款申请的审核意见（拒绝原因）
+     */
+    String getAuditRemarkByUserId(Long userId);
+
+    /**
      * 获取当前用户可借额度
      */
     BigDecimal getBorrowAmount(Long userId);

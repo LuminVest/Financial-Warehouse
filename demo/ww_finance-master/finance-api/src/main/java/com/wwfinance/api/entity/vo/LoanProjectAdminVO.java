@@ -62,9 +62,12 @@ public class LoanProjectAdminVO implements Serializable {
     @ApiModelProperty(value = "募集截止时间")
     private LocalDate endTime;
 
+    @ApiModelProperty(value = "平台服务费率(%)")
+    private BigDecimal serviceRate;
+
+    @ApiModelProperty(value = "已扣除的平台服务费")
+    private BigDecimal serviceFee;
+
     @ApiModelProperty(value = "创建时间")
     private LocalDateTime createTime;
-
-    @ApiModelProperty(value = "备注")
-    private String remark;
 }

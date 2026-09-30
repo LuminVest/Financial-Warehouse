@@ -31,7 +31,7 @@ export function getLoanProjectList(params: LoanProjectQuery = {}): Promise<PageR
 
 // 发布标的（测试功能，正常由借款人发布）
 // 完整路径：POST /admin/core/loan/project
-export function publishLoanProject(data: Omit<LoanProject, 'id' | 'raisedAmount' | 'progress' | 'status' | 'publishTime' | 'endTime' | 'createTime' | 'remark'>): Promise<null> {
+export function publishLoanProject(data: Omit<LoanProject, 'id' | 'raisedAmount' | 'progress' | 'status' | 'publishTime' | 'endTime' | 'createTime' | 'serviceFee'>): Promise<null> {
   return request({
     url: '/loan/project',
     method: 'post',

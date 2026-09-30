@@ -1,15 +1,54 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { getAccount } from '@/api/account'
 import { getBorrowerStatus } from '@/api/borrower'
+import { getIntegralInfo, getUserInfo, updateProfile } from '@/api/user'
 
 const router = useRouter()
 const userStore = useUserStore()
 
 const balance = ref(0)
 const borrowStatus = ref<number | null>(null)
+
+// 个人资料：昵称/性别编辑
+const profileForm = ref({ nickName: '', gender: 0 })
+const savingProfile = ref(false)
+const integralInfo = ref<{ integral?: number; gradeName?: string }>({})
+
+function initProfileForm() {
+  profileForm.value.nickName = userStore.userInfo?.nickName || userStore.userInfo?.name || ''
+  profileForm.value.gender = userStore.userInfo?.gender ?? 0
+}
+initProfileForm()
+
+async function loadIntegral() {
+  try {
+    integralInfo.value = (await getIntegralInfo()) as unknown as { integral?: number; gradeName?: string }
+  } catch {
+    // 忽略
+  }
+}
+
+async function saveProfile() {
+  if (!profileForm.value.nickName.trim()) {
+    ElMessage.warning('昵称不能为空')
+    return
+  }
+  savingProfile.value = true
+  try {
+    await updateProfile({ nickName: profileForm.value.nickName.trim(), gender: profileForm.value.gender })
+    const info = await getUserInfo()
+    userStore.setInfo(info as never)
+    ElMessage.success('保存成功')
+  } catch {
+    // 拦截器已提示
+  } finally {
+    savingProfile.value = false
+  }
+}
 
 const borrowStatusText: Record<number, { text: string; type: string }> = {
   0: { text: '未认证', type: 'info' },
@@ -18,15 +57,27 @@ const borrowStatusText: Record<number, { text: string; type: string }> = {
   [-1]: { text: '已拒绝', type: 'danger' },
 }
 
-const entries = [
-  { path: '/center/bind', title: '账户绑定', desc: '开通旺旺银行存管账户', icon: 'CreditCard' },
-  { path: '/center/borrow-apply', title: '立即借款', desc: '提交借款申请', icon: 'Money' },
-  { path: '/center/flow', title: '资金记录', desc: '充值/提现/投标/回款流水', icon: 'List' },
-  { path: '/center/borrow-record', title: '借款记录', desc: '查看我的借款', icon: 'Document' },
-  { path: '/center/my-lend-return', title: '还款计划', desc: '按期还款', icon: 'Calendar' },
-  { path: '/center/charge', title: '充值', desc: '旺旺银行充值', icon: 'Wallet' },
-  { path: '/center/withdraw', title: '提现', desc: '旺旺银行提现', icon: 'WalletFilled' },
-]
+// 功能入口：借款人 7 项 / 投资人 4 项（与左侧菜单一致）
+const entries = computed(() => {
+  const common = [
+    { path: '/center/bind', title: '账户绑定', desc: '开通旺旺银行存管账户', icon: 'CreditCard' },
+    { path: '/center/flow', title: '资金记录', desc: '充值/提现/投标/回款流水', icon: 'List' },
+    { path: '/center/charge', title: '充值', desc: '旺旺银行充值', icon: 'Wallet' },
+    { path: '/center/withdraw', title: '提现', desc: '旺旺银行提现', icon: 'WalletFilled' },
+  ]
+  if (userStore.userInfo?.userType === 2) {
+    return [
+      { path: '/center/bind', title: '账户绑定', desc: '开通旺旺银行存管账户', icon: 'CreditCard' },
+      { path: '/center/borrow-apply', title: '立即借款', desc: '提交借款申请', icon: 'Money' },
+      { path: '/center/flow', title: '资金记录', desc: '充值/提现/投标/回款流水', icon: 'List' },
+      { path: '/center/borrow-record', title: '借款记录', desc: '查看我的借款', icon: 'Document' },
+      { path: '/center/my-lend-return', title: '还款计划', desc: '按期还款', icon: 'Calendar' },
+      { path: '/center/charge', title: '充值', desc: '旺旺银行充值', icon: 'Wallet' },
+      { path: '/center/withdraw', title: '提现', desc: '旺旺银行提现', icon: 'WalletFilled' },
+    ]
+  }
+  return common
+})
 
 onMounted(async () => {
   try {
@@ -36,10 +87,12 @@ onMounted(async () => {
     // 未绑卡等场景忽略
   }
   try {
-    borrowStatus.value = (await getBorrowerStatus()) as unknown as number
+    const info = (await getBorrowerStatus()) as unknown as { status: number; auditRemark?: string | null }
+    borrowStatus.value = info.status
   } catch {
     // 忽略
   }
+  loadIntegral()
 })
 </script>
 
@@ -61,10 +114,14 @@ onMounted(async () => {
           <span class="v">¥{{ Number(balance).toLocaleString(undefined, { minimumFractionDigits: 2 }) }}</span>
         </div>
         <div class="row">
-          <span class="k">实名绑卡</span>
-          <span class="v">{{ userStore.userInfo?.idCard ? '已绑定' : '未绑定' }}</span>
+          <span class="k">账户类型</span>
+          <span class="v">{{ userStore.userInfo?.userType === 2 ? '借款人' : '投资人' }}</span>
         </div>
         <div class="row">
+          <span class="k">实名绑卡</span>
+          <span class="v">{{ userStore.userInfo?.bindStatus === 1 ? '已绑定' : '未绑定' }}</span>
+        </div>
+        <div v-if="userStore.userInfo?.userType === 2" class="row">
           <span class="k">借款人认证</span>
           <span class="v">
             <el-tag :type="(borrowStatusText[borrowStatus ?? 0]?.type as any) ?? 'info'" size="small">
@@ -74,6 +131,34 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <!-- 个人资料：昵称/性别编辑 + 积分等级展示 -->
+    <el-card shadow="never" class="entry-card">
+      <template #header>
+        <div class="card-header">
+          <span>个人资料</span>
+          <span class="integral-bar">
+            积分 {{ integralInfo.integral ?? 0 }}
+            <el-tag size="small" type="warning" effect="plain">{{ integralInfo.gradeName || '普通用户' }}</el-tag>
+          </span>
+        </div>
+      </template>
+      <el-form :model="profileForm" label-width="60px" style="max-width: 420px">
+        <el-form-item label="昵称">
+          <el-input v-model="profileForm.nickName" :maxlength="20" placeholder="请输入昵称" />
+        </el-form-item>
+        <el-form-item label="性别">
+          <el-radio-group v-model="profileForm.gender">
+            <el-radio :value="0">保密</el-radio>
+            <el-radio :value="1">男</el-radio>
+            <el-radio :value="2">女</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="savingProfile" @click="saveProfile">保存</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
 
     <el-card shadow="never" class="entry-card">
       <template #header>功能入口</template>
@@ -133,6 +218,18 @@ onMounted(async () => {
 }
 .entry-card {
   margin-top: 16px;
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.integral-bar {
+  font-size: 13px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .entry-grid {
   display: grid;

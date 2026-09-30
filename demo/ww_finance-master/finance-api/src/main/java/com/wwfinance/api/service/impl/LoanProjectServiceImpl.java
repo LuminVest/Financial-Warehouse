@@ -111,11 +111,17 @@ public class LoanProjectServiceImpl implements LoanProjectService {
         lend.setLendYearRate(rate == null ? null
                 : rate.divide(BigDecimal.valueOf(100)));
         lend.setLendInfo(purpose);
+        // 平台服务费率 1%（满标放款时按借款金额一次性扣除）
+        lend.setServiceRate(new BigDecimal("0.01"));
         lend.setRiskLevel(riskLevel == null ? 1 : riskLevel);
         lend.setStatus(1);
         lend.setInvestAmount(BigDecimal.ZERO);
         lend.setInvestNum(0);
         lend.setPublishDate(LocalDateTime.now());
+        // 募集起止日期：发布日起始，+30 天募集截止
+        java.time.LocalDate publishDate = java.time.LocalDate.now();
+        lend.setLendStartDate(publishDate);
+        lend.setLendEndDate(publishDate.plusDays(30));
         lend.setDeleted(false);
         lendMapper.insert(lend);
         log.info("管理后台发布标的: id={}, title={}, borrowerId={}", lend.getId(), title, borrowerId);
@@ -185,8 +191,10 @@ public class LoanProjectServiceImpl implements LoanProjectService {
                 .setRiskLevel(l.getRiskLevel())
                 .setPublishTime(l.getPublishDate())
                 .setEndTime(l.getLendEndDate())
-                .setCreateTime(l.getCreateTime())
-                .setRemark("");
+                .setServiceRate(l.getServiceRate() == null ? null
+                        : l.getServiceRate().multiply(BigDecimal.valueOf(100)))
+                .setServiceFee(l.getServiceFee())
+                .setCreateTime(l.getCreateTime());
     }
 
     private InvestmentAdminVO toInvestVO(LendItem item, Integer period) {

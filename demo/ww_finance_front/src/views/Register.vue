@@ -26,8 +26,8 @@ async function handleSendCode() {
   }
   sendLoading.value = true
   try {
-    await sendCode(form.mobile)
-    ElMessage.success('验证码已发送（测试环境任意填）')
+    const code = await sendCode(form.mobile)
+    ElMessage.success(`验证码已发送，测试环境验证码：${code}`)
     countdown.value = 60
     const timer = setInterval(() => {
       countdown.value--

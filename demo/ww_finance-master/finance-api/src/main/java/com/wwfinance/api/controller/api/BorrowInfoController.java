@@ -12,6 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.Map;
 
 @Api(tags = "借款信息")
 @RestController
@@ -22,12 +24,14 @@ public class BorrowInfoController {
     @Autowired
     private BorrowInfoService borrowInfoService;
 
-    @ApiOperation("获取当前登录用户的借款申请审批状态")
+    @ApiOperation("获取当前登录用户的借款申请审批状态（含审核意见）")
     @GetMapping("/auth/getBorrowInfoStatus")
     public PccAjaxResult getBorrowInfoStatus() {
         Long userId = LoginUserContext.getUserid().longValue();
-        Integer status = borrowInfoService.getStatusByUserId(userId);
-        return new PccAjaxResult(200, "获取借款申请审批状态", status);
+        Map<String, Object> data = new HashMap<>();
+        data.put("status", borrowInfoService.getStatusByUserId(userId));
+        data.put("auditRemark", borrowInfoService.getAuditRemarkByUserId(userId));
+        return new PccAjaxResult(200, "获取借款申请审批状态", data);
     }
 
     @ApiOperation("获取当前登录用户的借款额度")

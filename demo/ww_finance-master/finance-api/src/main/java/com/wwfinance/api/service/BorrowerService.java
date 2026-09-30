@@ -25,6 +25,11 @@ public interface BorrowerService extends IService<Borrower> {
     Integer getStatusByUserId(Long userId);
 
     /**
+     * 根据用户 id 查询审核备注（不通过原因，未认证或无备注返回 null）
+     */
+    String getAuditRemarkByUserId(Long userId);
+
+    /**
      * 管理后台：借款人分页列表（keyword 模糊匹配姓名/身份证/手机号）
      *
      * @return {list: [BorrowerAdminVO], total}

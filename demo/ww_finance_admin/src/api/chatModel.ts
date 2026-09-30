@@ -1,5 +1,5 @@
 // 智能客服对话模型配置 API
-import request from '@/utils/request'
+import { request } from '@/utils/request'
 
 // 获取对话模型绑定列表
 export function getChatModelBindings() {
@@ -21,8 +21,8 @@ export function updateChatModelBinding(data: any) {
 // 获取可选项（模型列表 + Prompt列表 + 知识库列表）
 export async function getSelectOptions() {
   const [models, prompts] = await Promise.all([
-    request({ url: '/chat/model/list', method: 'get' }),
-    request({ url: '/chat/prompt/list', method: 'get' }),
+    request<any[]>({ url: '/chat/model/list', method: 'get' }),
+    request<any[]>({ url: '/chat/prompt/list', method: 'get' }),
   ])
   return {
     models: (models || []).map((m: any) => ({ id: m.id, name: m.name, modelName: m.modelName })),

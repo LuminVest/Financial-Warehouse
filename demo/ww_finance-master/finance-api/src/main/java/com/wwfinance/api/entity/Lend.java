@@ -77,6 +77,12 @@ public class Lend implements Serializable {
     private BigDecimal serviceRate;
 
     /**
+     * 实际扣除的平台服务费（满标放款时 = 借款金额 × 服务费率）
+     */
+    @TableField("service_fee")
+    private BigDecimal serviceFee;
+
+    /**
      * 还款方式 1-等额本息 2-等额本金 3-每月还息一次还本 4-一次还本
      */
     @TableField("return_method")

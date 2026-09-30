@@ -12,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @Api(tags = "用户注册")
 @RestController
 @RequestMapping("/api/core/user")
@@ -81,5 +83,18 @@ public class UserController {
             return new PccAjaxResult(500, "用户不存在");
         }
         return new PccAjaxResult(200, "获取成功", user);
+    }
+
+    @ApiOperation("更新个人资料（昵称/性别）")
+    @PostMapping("/updateProfile")
+    public PccAjaxResult updateProfile(@RequestBody Map<String, Object> body){
+        Integer userId = LoginUserContext.getUserid();
+        if (userId == null) {
+            return new PccAjaxResult(401, "未登录");
+        }
+        String nickName = body.get("nickName") == null ? null : String.valueOf(body.get("nickName"));
+        Integer gender = body.get("gender") == null ? null : Integer.valueOf(String.valueOf(body.get("gender")));
+        userService.updateProfile(userId.longValue(), nickName, gender);
+        return new PccAjaxResult(200, "保存成功");
     }
 }

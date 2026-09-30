@@ -1,6 +1,5 @@
 // 智能客服咨询记录 API
 import request from '@/utils/request'
-import type { ChatSession } from './mock'
 
 export interface ChatSessionQuery {
   keyword?: string

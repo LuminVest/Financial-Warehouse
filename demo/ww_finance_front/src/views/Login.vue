@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { User, Lock, Phone } from '@element-plus/icons-vue'
+import { Lock, Phone } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { login } from '@/api/user'
 import { useUserStore } from '@/stores/user'
@@ -35,7 +35,7 @@ async function handleLogin() {
     }
     userStore.setAuth(res.token)
     // 以登录页所选角色标签为准（1=投资人 / 2=借款人），决定登录后的界面菜单
-    userStore.setInfo({ ...res.userInfo, userType: form.userType } as never)
+    userStore.setInfo({ ...(res.userInfo as Record<string, unknown>), userType: form.userType } as never)
     ElMessage.success('登录成功')
     router.push((route.query.redirect as string) || '/home')
   } catch {

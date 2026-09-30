@@ -82,6 +82,11 @@ function openAuditDialog(row: Borrower) {
 
 async function submitAudit() {
   if (!auditRow.value) return
+  // 拒绝时原因必填：用户端会展示该原因，引导用户修改
+  if (auditForm.auditStatus === 2 && !auditForm.remark.trim()) {
+    ElMessage.warning('请填写不通过原因（用户端将展示该原因）')
+    return
+  }
   try {
     const res = await auditBorrower(auditRow.value.id, {
       auditStatus: auditForm.auditStatus,
@@ -120,6 +125,21 @@ const auditMap: Record<number, { text: string; type: string }> = {
 }
 function genderText(g: number) {
   return g === 1 ? '男' : g === 2 ? '女' : '未知'
+}
+
+// 认证材料展示：OSS 返回本地路径（file:///D:/uploads/x.png 或 D:\uploads\x.png），转 /uploads/xxx 经 vite 代理展示
+function toDisplayUrl(url: string): string {
+  const name = url.split(/[\\/]/).pop() ?? ''
+  return `/uploads/${name}`
+}
+
+// 附件类型 → 展示标题
+const attachLabels: Record<string, string> = {
+  idCard1: '身份证正面',
+  idCard2: '身份证反面',
+  car: '车辆证明',
+  house: '房产证明',
+  work: '工作收入证明',
 }
 
 // ------ 生命周期 ------
@@ -175,7 +195,7 @@ onMounted(fetchList)
           <template #default="{ row }">{{ row.isMarry === 1 ? '是' : row.isMarry === 0 ? '否' : '—' }}</template>
         </el-table-column>
         <el-table-column label="月收入" min-width="110" align="center">
-          <template #default="{ row }">¥{{ row.monthlyIncome.toLocaleString() }}</template>
+          <template #default="{ row }">{{ row.incomeText || `¥${row.monthlyIncome.toLocaleString()}` }}</template>
         </el-table-column>
         <el-table-column label="授信额度" min-width="120" align="center">
           <template #default="{ row }">¥{{ row.creditLimit.toLocaleString() }}</template>
@@ -247,11 +267,39 @@ onMounted(fetchList)
           </el-radio-group>
           <span style="color: #999; font-size: 12px; margin-left: 8px">可获得积分 100 积分</span>
         </el-form-item>
+        <el-form-item label="认证材料">
+          <div v-if="auditRow?.attachList?.length" class="attach-grid">
+            <div v-for="(att, i) in auditRow.attachList" :key="i" class="attach-item">
+              <div class="attach-label">{{ attachLabels[att.imageType] ?? att.imageType }}</div>
+              <el-image
+                :src="toDisplayUrl(att.imageUrl)"
+                :preview-src-list="auditRow.attachList.map((a) => toDisplayUrl(a.imageUrl))"
+                :initial-index="i"
+                fit="cover"
+                class="attach-img"
+                preview-teleported
+              >
+                <template #error>
+                  <div class="attach-error">图片加载失败</div>
+                </template>
+              </el-image>
+            </div>
+          </div>
+          <span v-else style="color: #999; font-size: 12px">该借款人未上传认证材料</span>
+        </el-form-item>
         <el-form-item v-if="auditForm.auditStatus === 1" label="预计可获积分">
           <span style="color: #e8421f; font-weight: 600">{{ expectScore }} 积分</span>
         </el-form-item>
-        <el-form-item label="审核备注">
-          <el-input v-model="auditForm.remark" type="textarea" :rows="2" placeholder="备注信息（选填）" />
+        <el-form-item label="审核备注" :required="auditForm.auditStatus === 2">
+          <el-input
+            v-model="auditForm.remark"
+            type="textarea"
+            :rows="2"
+            :placeholder="auditForm.auditStatus === 2 ? '请填写不通过原因（必填，用户端将展示该原因）' : '备注信息（选填）'"
+          />
+          <span v-if="auditForm.auditStatus === 2" style="color: #e6a23c; font-size: 12px; line-height: 1.6; display: block; margin-top: 4px">
+            不通过时请填写具体原因，用户端认证页会展示该原因，引导用户修改对应材料
+          </span>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -271,9 +319,18 @@ onMounted(fetchList)
         <el-descriptions-item label="是否结婚">{{ detailData.isMarry === 1 ? '是' : detailData.isMarry === 0 ? '否' : '—' }}</el-descriptions-item>
         <el-descriptions-item label="身份证号">{{ detailData.idCard }}</el-descriptions-item>
         <el-descriptions-item label="手机号">{{ detailData.phone }}</el-descriptions-item>
-        <el-descriptions-item label="月收入">¥{{ detailData.monthlyIncome.toLocaleString() }}</el-descriptions-item>
+        <el-descriptions-item label="学历">{{ detailData.educationText || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="行业">{{ detailData.industryText || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="工作单位" :span="2">{{ detailData.employer || '—' }}</el-descriptions-item>
+        <el-descriptions-item label="月收入">{{ detailData.incomeText || `¥${detailData.monthlyIncome.toLocaleString()}` }}</el-descriptions-item>
+        <el-descriptions-item label="还款来源">{{ detailData.returnSourceText || '—' }}</el-descriptions-item>
         <el-descriptions-item label="授信额度">¥{{ detailData.creditLimit.toLocaleString() }}</el-descriptions-item>
         <el-descriptions-item label="已用额度">¥{{ detailData.usedLimit.toLocaleString() }}</el-descriptions-item>
+        <el-descriptions-item label="联系人" :span="2">
+          {{ detailData.contactsName || '—' }}
+          <template v-if="detailData.contactsMobile">（{{ detailData.contactsMobile }}）</template>
+          <template v-if="detailData.contactsRelationText"> · {{ detailData.contactsRelationText }}</template>
+        </el-descriptions-item>
         <el-descriptions-item label="审核状态">
           <el-tag :type="auditMap[detailData.auditStatus]?.type as string">
             {{ auditMap[detailData.auditStatus]?.text }}
@@ -319,5 +376,38 @@ onMounted(fetchList)
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+.attach-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+.attach-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.attach-label {
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+}
+.attach-img {
+  width: 100%;
+  height: 96px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  background: #fafafa;
+}
+.attach-error {
+  width: 100%;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-size: 12px;
+  background: #fafafa;
 }
 </style>

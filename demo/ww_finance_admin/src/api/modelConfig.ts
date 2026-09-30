@@ -16,6 +16,8 @@ export interface ModelConfig {
 
 export interface ModelQuery {
   keyword?: string
+  modelType?: string
+  provider?: string
 }
 
 // 获取模型列表

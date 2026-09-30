@@ -30,6 +30,16 @@ export function getUserInfo() {
   return request.get('/api/core/user/userInfo')
 }
 
+// 更新个人资料（昵称/性别）
+export function updateProfile(data: { nickName: string; gender: number }) {
+  return request.post('/api/core/user/updateProfile', data)
+}
+
+// 我的积分等级
+export function getIntegralInfo() {
+  return request.get('/api/user/center/integral/info')
+}
+
 // 退出登录
 export function logout() {
   return request.get('/api/core/user/logout')

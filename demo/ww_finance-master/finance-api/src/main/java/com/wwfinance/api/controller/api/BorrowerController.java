@@ -12,6 +12,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Api(tags = "借款人认证")
 @RestController
 @RequestMapping("/api/core/borrower")
@@ -35,9 +38,14 @@ public class BorrowerController {
     public PccAjaxResult getBorrowerStatus() {
         Long userId = LoginUserContext.getUserid().longValue();
         Integer status = borrowerService.getStatusByUserId(userId);
+        Map<String, Object> data = new HashMap<>();
         if (status == null) {
-            return new PccAjaxResult(200, "获取认证结果", BorrowerStatusEnum.NO_AUTH.getStatus());
+            data.put("status", BorrowerStatusEnum.NO_AUTH.getStatus());
+            data.put("auditRemark", null);
+        } else {
+            data.put("status", status);
+            data.put("auditRemark", borrowerService.getAuditRemarkByUserId(userId));
         }
-        return new PccAjaxResult(200, "获取认证结果", status);
+        return new PccAjaxResult(200, "获取认证结果", data);
     }
 }

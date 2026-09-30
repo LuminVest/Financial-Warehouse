@@ -7,8 +7,11 @@ export interface UserInfo {
   name: string
   mobile: string
   idCard?: string
+  bindStatus?: number // 1已绑定存管账户
   borrowAuthStatus?: number
   integral?: number
+  nickName?: string
+  gender?: number // 0保密 1男 2女
   userType?: number // 1投资人 2借款人
 }
 

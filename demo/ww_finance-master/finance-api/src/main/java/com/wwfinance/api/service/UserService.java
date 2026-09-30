@@ -29,4 +29,7 @@ public interface UserService extends IService<User> {
 
     /** 用户登录：校验密码/状态 + 生成 token + 组装返回数据 */
     Map<String, Object> login(UserDto userDTO);
+
+    /** 更新个人资料（昵称/性别） */
+    void updateProfile(Long userId, String nickName, Integer gender);
 }

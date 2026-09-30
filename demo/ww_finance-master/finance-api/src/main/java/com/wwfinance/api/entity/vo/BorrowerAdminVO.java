@@ -1,5 +1,6 @@
 package com.wwfinance.api.entity.vo;
 
+import com.wwfinance.api.entity.BorrowerAttach;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
@@ -7,6 +8,7 @@ import lombok.experimental.Accessors;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 管理后台-借款人列表 VO（对齐 ww_finance_admin 前端 Borrower 类型）
@@ -57,8 +59,29 @@ public class BorrowerAdminVO implements Serializable {
     @ApiModelProperty(value = "工作单位（demo 暂无字段，返回空）")
     private String employer;
 
+    @ApiModelProperty(value = "学历文字（字典翻译）")
+    private String educationText;
+
+    @ApiModelProperty(value = "行业文字（字典翻译）")
+    private String industryText;
+
+    @ApiModelProperty(value = "还款来源文字（字典翻译）")
+    private String returnSourceText;
+
+    @ApiModelProperty(value = "联系人姓名")
+    private String contactsName;
+
+    @ApiModelProperty(value = "联系人手机号")
+    private String contactsMobile;
+
+    @ApiModelProperty(value = "联系人关系文字（字典翻译）")
+    private String contactsRelationText;
+
     @ApiModelProperty(value = "月收入（元，income 为字典编号，此处返回 0）")
     private Integer monthlyIncome;
+
+    @ApiModelProperty(value = "月收入档位文字（字典翻译，如 500000以上）")
+    private String incomeText;
 
     @ApiModelProperty(value = "申请时间")
     private LocalDateTime createTime;
@@ -68,4 +91,7 @@ public class BorrowerAdminVO implements Serializable {
 
     @ApiModelProperty(value = "备注")
     private String remark;
+
+    @ApiModelProperty(value = "认证材料附件列表（身份证正反面/车辆/房产等）")
+    private List<BorrowerAttach> attachList;
 }

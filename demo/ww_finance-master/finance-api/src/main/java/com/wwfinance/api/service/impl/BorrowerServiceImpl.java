@@ -1,11 +1,13 @@
 package com.wwfinance.api.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.wwfinance.api.entity.Borrower;
 import com.wwfinance.api.entity.BorrowerAttach;
+import com.wwfinance.api.entity.Dict;
 import com.wwfinance.api.entity.User;
 import com.wwfinance.api.entity.dto.BorrowerDTO;
 import com.wwfinance.api.entity.vo.BorrowerAdminVO;
@@ -17,6 +19,7 @@ import com.wwfinance.api.mapper.UserBindMapper;
 import com.wwfinance.api.mapper.UserMapper;
 import com.wwfinance.api.entity.UserBind;
 import com.wwfinance.api.service.BorrowerService;
+import com.wwfinance.api.service.DictService;
 import com.wwfinance.api.service.UserIntegralService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -24,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +49,9 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
     @Autowired
     private UserIntegralService userIntegralService;
 
+    @Autowired
+    private DictService dictService;
+
     /**
      * 借款人认证提交：
      * 1. 添加 borrower（user_id 唯一索引：已存在则更新，否则新增）
@@ -62,6 +69,8 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
         if (user.getUserType() != null && user.getUserType() != 2) {
             throw new BusinessException("仅借款人身份可提交借款认证，投资人无法借款");
         }
+        // 0. 参数格式校验（防绕过前端直接调接口）
+        validateAuthParam(borrowerDTO);
         // 1. 添加 borrower：姓名/身份证/手机号取 user 表，其余认证信息来自 DTO
         Borrower borrower = new Borrower();
         BeanUtils.copyProperties(borrowerDTO, borrower);
@@ -80,17 +89,50 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
         }
 
         // 2. 添加 borrower_attach（附件：身份证正反面、房产证、车等）
+        // 重新提交认证时先逻辑删除旧附件，避免新旧材料叠加展示
+        borrowerAttachMapper.update(null, new LambdaUpdateWrapper<BorrowerAttach>()
+                .eq(BorrowerAttach::getBorrowerId, borrower.getId())
+                .set(BorrowerAttach::getDeleted, true));
         List<BorrowerAttach> attachList = borrowerDTO.getBorrowerAttachList();
         if (attachList != null && !attachList.isEmpty()) {
             for (BorrowerAttach attach : attachList) {
                 attach.setBorrowerId(borrower.getId());
+                attach.setDeleted(false);
                 borrowerAttachMapper.insert(attach);
             }
         }
 
-        // 3. 更新 user 表：借款人认证状态置为「认证中」
+        // 3. 更新 user 表：借款人认证状态置为「认证中」，同步性别（会员管理展示用）
+        // 认证表单 sex：1男 0女；user.gender：1男 2女 0未知
+        if (borrowerDTO.getSex() != null) {
+            user.setGender(borrowerDTO.getSex() == 1 ? 1 : 2);
+        }
         user.setBorrowAuthStatus(BorrowerStatusEnum.AUTH_RUNNING.getStatus());
         userMapper.updateById(user);
+    }
+
+    /**
+     * 借款人认证参数校验：工作单位、联系人姓名、联系人手机号（11 位）格式校验
+     */
+    private void validateAuthParam(BorrowerDTO dto) {
+        if (dto == null) {
+            throw new BusinessException("认证参数不能为空");
+        }
+        if (dto.getAge() == null) {
+            throw new BusinessException("请填写年龄");
+        }
+        if (dto.getEmployer() == null || dto.getEmployer().trim().isEmpty()) {
+            throw new BusinessException("请填写工作单位");
+        }
+        if (dto.getContactsName() == null || dto.getContactsName().trim().isEmpty()) {
+            throw new BusinessException("请填写联系人姓名");
+        }
+        if (dto.getContactsMobile() == null || dto.getContactsMobile().isEmpty()) {
+            throw new BusinessException("请填写联系人手机号");
+        }
+        if (!dto.getContactsMobile().matches("^1[3-9]\\d{9}$")) {
+            throw new BusinessException("联系人手机号格式不正确（需为 11 位手机号）");
+        }
     }
 
     @Override
@@ -99,6 +141,14 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
         borrowerQueryWrapper.select(Borrower::getStatus).eq(Borrower::getUserId, userId);
         Borrower borrower = this.getOne(borrowerQueryWrapper);
         return borrower == null ? null : borrower.getStatus();
+    }
+
+    @Override
+    public String getAuditRemarkByUserId(Long userId) {
+        LambdaQueryWrapper<Borrower> borrowerQueryWrapper = new LambdaQueryWrapper<>();
+        borrowerQueryWrapper.select(Borrower::getAuditRemark).eq(Borrower::getUserId, userId);
+        Borrower borrower = this.getOne(borrowerQueryWrapper);
+        return borrower == null ? null : borrower.getAuditRemark();
     }
 
     // ==================== 管理后台 ====================
@@ -153,6 +203,8 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
         Integer oldStatus = borrower.getStatus();
         boolean needIntegral = targetStatus == 2 && (oldStatus == null || oldStatus != 2);
         borrower.setStatus(targetStatus);
+        // 审核备注（不通过原因等）落库，用户端可见
+        borrower.setAuditRemark(remark);
         this.updateById(borrower);
         // 同步 user 表借款人认证状态
         User user = userMapper.selectById(borrower.getUserId());
@@ -194,7 +246,9 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
             }
             // 材料类：按附件 image_type 加分
             List<BorrowerAttach> attaches = borrowerAttachMapper.selectList(
-                    new LambdaQueryWrapper<BorrowerAttach>().eq(BorrowerAttach::getBorrowerId, borrowerId));
+                    new LambdaQueryWrapper<BorrowerAttach>()
+                            .eq(BorrowerAttach::getBorrowerId, borrowerId)
+                            .eq(BorrowerAttach::getDeleted, false));
             boolean idCard = false, car = false, house = false;
             if (attaches != null) {
                 for (BorrowerAttach attach : attaches) {
@@ -219,6 +273,28 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
             }
         }
         return score;
+    }
+
+    /**
+     * 字典翻译：按 dictCode 查字典，返回 value 对应项的文字（未命中或异常返回空串）
+     */
+    private String dictName(String dictCode, Integer value) {
+        if (value == null) {
+            return "";
+        }
+        try {
+            List<Dict> dicts = dictService.listByDictCode(dictCode);
+            if (dicts != null) {
+                for (Dict d : dicts) {
+                    if (d.getValue() != null && d.getValue().equals(value)) {
+                        return d.getName();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("查询字典失败: dictCode={}, value={}, err={}", dictCode, value, e.getMessage());
+        }
+        return "";
     }
 
     /**
@@ -251,6 +327,13 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
         vo.setBankCard("");
         // 工作单位：borrower.employer（无则返回空）
         vo.setEmployer(borrower.getEmployer() == null ? "" : borrower.getEmployer());
+        // 认证信息文字（字典翻译）：学历/行业/还款来源/联系人关系
+        vo.setEducationText(dictName("education", borrower.getEducation()));
+        vo.setIndustryText(dictName("industry", borrower.getIndustry()));
+        vo.setReturnSourceText(dictName("returnSource", borrower.getReturnSource()));
+        vo.setContactsRelationText(dictName("relation", borrower.getContactsRelation()));
+        vo.setContactsName(borrower.getContactsName() == null ? "" : borrower.getContactsName());
+        vo.setContactsMobile(borrower.getContactsMobile() == null ? "" : borrower.getContactsMobile());
         // 月收入/授信额度：按认证收入档位映射 × 积分等级系数（与 getBorrowAmount 口径一致）
         Integer incomeLevel = borrower.getIncome();
         if (incomeLevel == null) {
@@ -285,6 +368,23 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
                         .setScale(0, java.math.RoundingMode.HALF_UP);
                 vo.setCreditLimit(calc.intValue());
             }
+            // 收入档位文字：按字典 income 翻译（如 500000以上），管理端直接展示区间
+            String incomeText = "";
+            try {
+                List<Dict> incomeDicts = dictService.listByDictCode("income");
+                if (incomeDicts != null) {
+                    for (Dict d : incomeDicts) {
+                        // Dict.value 为 Integer，与 incomeLevel 同类型比较
+                        if (d.getValue() != null && d.getValue().equals(incomeLevel)) {
+                            incomeText = d.getName();
+                            break;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("查询收入档位字典失败: income={}, err={}", incomeLevel, e.getMessage());
+            }
+            vo.setIncomeText(incomeText);
         }
         // 绑卡信息：取 user_bind 已绑定记录，银行卡号掩码展示
         UserBind bind = userBindMapper.selectOne(new LambdaQueryWrapper<UserBind>()
@@ -298,7 +398,14 @@ public class BorrowerServiceImpl extends ServiceImpl<BorrowerMapper, Borrower> i
         }
         vo.setCreateTime(borrower.getCreateTime());
         vo.setAuditTime(borrower.getUpdateTime());
-        vo.setRemark("");
+        // 备注：展示管理端审核时填写的审核备注（audit_remark，含不通过原因）
+        vo.setRemark(borrower.getAuditRemark() == null ? "" : borrower.getAuditRemark());
+        // 认证材料附件（身份证正反面/车辆/房产等），供管理端审核时查看
+        List<BorrowerAttach> attaches = borrowerAttachMapper.selectList(
+                new LambdaQueryWrapper<BorrowerAttach>()
+                        .eq(BorrowerAttach::getBorrowerId, borrower.getId())
+                        .eq(BorrowerAttach::getDeleted, false));
+        vo.setAttachList(attaches == null || attaches.isEmpty() ? new ArrayList<>() : attaches);
         return vo;
     }
 }

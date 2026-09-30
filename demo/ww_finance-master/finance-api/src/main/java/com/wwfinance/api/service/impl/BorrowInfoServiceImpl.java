@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.wwfinance.api.entity.BorrowInfo;
 import com.wwfinance.api.entity.Borrower;
+import com.wwfinance.api.entity.BorrowerAttach;
 import com.wwfinance.api.entity.Dict;
 import com.wwfinance.api.entity.IntegralGrade;
 import com.wwfinance.api.entity.Lend;
@@ -16,6 +17,7 @@ import com.wwfinance.api.enums.BorrowInfoStatusEnum;
 import com.wwfinance.api.enums.BorrowerStatusEnum;
 import com.wwfinance.common.exception.BusinessException;
 import com.wwfinance.api.mapper.BorrowInfoMapper;
+import com.wwfinance.api.mapper.BorrowerAttachMapper;
 import com.wwfinance.api.mapper.BorrowerMapper;
 import com.wwfinance.api.mapper.DictMapper;
 import com.wwfinance.api.mapper.IntegralGradeMapper;
@@ -29,6 +31,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -43,6 +46,9 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
 
     @Autowired
     private BorrowerMapper borrowerMapper;
+
+    @Autowired
+    private BorrowerAttachMapper borrowerAttachMapper;
 
     @Autowired
     private UserMapper userMapper;
@@ -72,6 +78,18 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
             return BorrowInfoStatusEnum.NO_AUTH.getStatus(); // 0 未提交
         }
         return borrowInfo.getStatus();
+    }
+
+    /**
+     * 获取最近一次借款申请的审核意见（拒绝原因）
+     */
+    @Override
+    public String getAuditRemarkByUserId(Long userId) {
+        BorrowInfo borrowInfo = this.getOne(new LambdaQueryWrapper<BorrowInfo>()
+                .eq(BorrowInfo::getUserId, userId)
+                .orderByDesc(BorrowInfo::getId)
+                .last("limit 1"));
+        return borrowInfo == null ? null : borrowInfo.getAuditRemark();
     }
 
     /**
@@ -162,6 +180,13 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
         if (user.getUserType() != null && user.getUserType() != 2) {
             throw new BusinessException("仅借款人身份可申请借款，投资人无法借款");
         }
+        // 查重：已有审核中的借款申请时禁止重复提交（审核通过后可继续发起新借款）
+        Integer pendingCount = this.baseMapper.selectCount(new LambdaQueryWrapper<BorrowInfo>()
+                .eq(BorrowInfo::getUserId, userId)
+                .eq(BorrowInfo::getStatus, BorrowInfoStatusEnum.CHECK_RUN.getStatus()));
+        if (pendingCount != null && pendingCount > 0) {
+            throw new BusinessException("已有审核中的借款申请，请等待审核结果");
+        }
         // 校验可借额度：收入档位 × 积分等级系数（未认证通过额度为 0）
         BigDecimal limit = getBorrowAmount(userId);
         if (borrowInfo.getAmount() == null || borrowInfo.getAmount().compareTo(limit) > 0) {
@@ -246,6 +271,10 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
             throw new BusinessException("非法的审核状态");
         }
         borrowInfo.setStatus(targetStatus);
+        // 拒绝原因落库（管理端驳回时必填，用户端可查看）
+        if (targetStatus == -1) {
+            borrowInfo.setAuditRemark(rejectReason);
+        }
         this.updateById(borrowInfo);
         // 审核通过 → 自动生成可投标的标的（BorrowInfo → Lend），进入募集中
         if (targetStatus == 2) {
@@ -278,19 +307,92 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
         lend.setPeriod(borrowInfo.getPeriod());
         lend.setLendYearRate(borrowInfo.getBorrowYearRate());
         lend.setReturnMethod(borrowInfo.getReturnMethod());
+        // 平台服务费率 1%（满标放款时按借款金额一次性扣除）
+        lend.setServiceRate(new BigDecimal("0.01"));
         lend.setLendInfo(convertMoneyUse(borrowInfo.getMoneyUse()));
+        // 风险等级：借款人评分基础档 + 借款金额修正（评分高/金额低 → 低风险）
+        lend.setRiskLevel(calcRiskLevel(borrowInfo.getUserId(), borrowInfo.getAmount()));
         lend.setStatus(1); // 募集中
         lend.setInvestAmount(BigDecimal.ZERO);
         lend.setInvestNum(0);
         lend.setPublishDate(LocalDateTime.now());
+        // 募集起止日期：发布日起始，+30 天募集截止
+        LocalDate publishDate = LocalDate.now();
+        lend.setLendStartDate(publishDate);
+        lend.setLendEndDate(publishDate.plusDays(30));
         lend.setDeleted(false);
         lendMapper.insert(lend);
         log.info("审核通过自动生成标的: borrowInfoId={}, lendId={}, title={}",
                 borrowInfo.getId(), lend.getId(), lend.getTitle());
     }
 
-    /** 借款用途数字 → 字典中文（dict 表：父项 dict_code=moneyUse，子项按 parent_id+value 匹配） */
-    private String convertMoneyUse(Integer moneyUse) {
+    /**
+     * 风险等级评估：借款人认证评分基础档 + 借款金额修正
+     *  基础档：评分≥190 低(1)、130~189 中(2)、&lt;130 高(3)
+     *  金额修正：≤100万 +0、100万~1000万 +1、≥1000万 +2
+     *  最终等级封顶 3（高风险）
+     */
+    private Integer calcRiskLevel(Long userId, BigDecimal amount) {
+        int score = 0;
+        try {
+            Borrower borrower = borrowerMapper.selectOne(new LambdaQueryWrapper<Borrower>()
+                    .eq(Borrower::getUserId, userId)
+                    .last("limit 1"));
+            if (borrower != null) {
+                // 基本信息齐全 +30
+                if (borrower.getAge() != null && borrower.getEducation() != null
+                        && borrower.getIndustry() != null && borrower.getIncome() != null
+                        && borrower.getReturnSource() != null) {
+                    score += 30;
+                }
+                // 附件：身份证 +30、车辆 +60、房产 +100
+                List<BorrowerAttach> attaches = borrowerAttachMapper.selectList(
+                        new LambdaQueryWrapper<BorrowerAttach>()
+                                .eq(BorrowerAttach::getBorrowerId, borrower.getId())
+                                .eq(BorrowerAttach::getDeleted, false));
+                boolean idCard = false, car = false, house = false;
+                if (attaches != null) {
+                    for (BorrowerAttach attach : attaches) {
+                        String type = attach.getImageType();
+                        if ("idCard1".equals(type) || "idCard2".equals(type)) {
+                            idCard = true;
+                        } else if ("car".equals(type)) {
+                            car = true;
+                        } else if ("house".equals(type)) {
+                            house = true;
+                        }
+                    }
+                }
+                if (idCard) {
+                    score += 30;
+                }
+                if (car) {
+                    score += 60;
+                }
+                if (house) {
+                    score += 100;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("评估标的风险等级失败, userId={}, err={}", userId, e.getMessage());
+        }
+        // 基础档
+        int base = score >= 190 ? 1 : (score >= 130 ? 2 : 3);
+        // 金额修正：≤100万 +0；100万~1000万 +1；≥1000万 +2
+        int up = 0;
+        if (amount != null) {
+            if (amount.compareTo(new BigDecimal("10000000")) >= 0) {
+                up = 2;
+            } else if (amount.compareTo(new BigDecimal("1000000")) > 0) {
+                up = 1;
+            }
+        }
+        int level = Math.min(base + up, 3);
+        log.info("风险等级评估: userId={}, score={}, amount={}, level={}", userId, score, amount, level);
+        return level;
+    }
+
+    /** 借款用途数字 → 字典中文（dict 表：父项 dict_code=moneyUse，子项按 parent_id+value 匹配） */    private String convertMoneyUse(Integer moneyUse) {
         if (moneyUse == null) {
             return "";
         }
@@ -356,8 +458,20 @@ public class BorrowInfoServiceImpl extends ServiceImpl<BorrowInfoMapper, BorrowI
         vo.setRepayAmount(repaid);
         vo.setApplyTime(info.getCreateTime());
         vo.setAuditTime(info.getUpdateTime());
-        vo.setRepayEndTime("");
-        vo.setRejectReason("");
+        // 应还清时间：关联标的还款计划中最后一期的还款日（按 return_date 取最大）
+        String repayEndTime = "";
+        if (relatedLend != null) {
+            LendReturn lastReturn = lendReturnMapper.selectOne(new LambdaQueryWrapper<LendReturn>()
+                    .eq(LendReturn::getLendId, relatedLend.getId())
+                    .apply("is_deleted = 0")
+                    .orderByDesc(LendReturn::getReturnDate)
+                    .last("limit 1"));
+            if (lastReturn != null && lastReturn.getReturnDate() != null) {
+                repayEndTime = lastReturn.getReturnDate().toString();
+            }
+        }
+        vo.setRepayEndTime(repayEndTime);
+        vo.setRejectReason(info.getAuditRemark() == null ? "" : info.getAuditRemark());
         return vo;
     }
 }

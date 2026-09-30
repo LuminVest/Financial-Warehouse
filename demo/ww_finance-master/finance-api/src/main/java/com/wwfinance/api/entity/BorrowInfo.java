@@ -70,6 +70,12 @@ public class BorrowInfo implements Serializable {
     private Integer status;
 
     /**
+     * 审核意见（拒绝原因）
+     */
+    @TableField("audit_remark")
+    private String auditRemark;
+
+    /**
      * 创建时间
      */
     @TableField("create_time")

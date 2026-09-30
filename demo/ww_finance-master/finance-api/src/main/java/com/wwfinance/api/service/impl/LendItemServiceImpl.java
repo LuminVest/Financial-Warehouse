@@ -143,6 +143,15 @@ public class LendItemServiceImpl extends ServiceImpl<LendItemMapper, LendItem> i
             throw new RuntimeException("投资金额超出剩余可投金额：" + remain);
         }
 
+        // 3.1 校验投资人可用余额（防止余额不足仍提交到托管银行）
+        UserAccount account = userAccountService.getOne(new LambdaQueryWrapper<UserAccount>()
+                .eq(UserAccount::getUserId, userId));
+        BigDecimal balance = account == null || account.getAmount() == null
+                ? BigDecimal.ZERO : account.getAmount();
+        if (balance.compareTo(investAmount) < 0) {
+            throw new BusinessException("账户余额不足，当前可用余额：" + balance + " 元");
+        }
+
         // 4. 组装旺旺银行投标参数（参数 key 对齐银行 ww_bank UserInvestController.invest）
         Map<String, Object> paramMap = new HashMap<>();
         paramMap.put("agentId", HfbConst.AGENT_ID);

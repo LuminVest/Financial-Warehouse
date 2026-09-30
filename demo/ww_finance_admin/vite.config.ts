@@ -41,6 +41,11 @@ export default defineConfig({
         target: 'http://localhost:8990',
         changeOrigin: true,
       },
+      // OSS 静态图片：/uploads/** → 8130 本地目录映射（展示借款人认证材料）
+      '/uploads': {
+        target: 'http://localhost:8130',
+        changeOrigin: true,
+      },
     },
   },
 })

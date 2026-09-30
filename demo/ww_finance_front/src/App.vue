@@ -14,7 +14,8 @@ const userStore = useUserStore()
 const isAuthPage = computed(() => route.path === '/login' || route.path === '/register')
 
 onMounted(async () => {
-  if (userStore.isLogin && !userStore.userInfo) {
+  // 已登录时每次进入都刷新用户信息（实名绑定/认证后 name、idCard、bindStatus 会变）
+  if (userStore.isLogin) {
     try {
       const info = await getUserInfo()
       userStore.setInfo(info as unknown as UserInfo)
