@@ -62,6 +62,9 @@ public class LendReturnServiceImpl extends ServiceImpl<LendReturnMapper, LendRet
     /** 已归还 */
     private static final int STATUS_PAID = 1;
 
+    /** 标的状态：已还清（lend.status） */
+    private static final int LEND_STATUS_FINISHED = 5;
+
     /** 银行回调成功编码（与充值/绑定/投资回调约定一致） */
     private static final String RESULT_OK = "0001";
 
@@ -396,6 +399,9 @@ public class LendReturnServiceImpl extends ServiceImpl<LendReturnMapper, LendRet
         log.info("还款到账, returnNo={}, lendId={}, currentPeriod={}, total={}, 逾期={}",
                 plan.getReturnNo(), plan.getLendId(), plan.getCurrentPeriod(), plan.getTotal(), overdue);
 
+        // 该期结清后，若整笔借款已无未还期 → 标的流转为"已还清"
+        markLendFinishedIfFullyRepaid(plan.getLendId());
+
         // 借款人本地账户扣减（与银行托管账户扣款同步）
         debitBorrower(plan.getUserId(), plan.getTotal() == null ? BigDecimal.ZERO : plan.getTotal());
 
@@ -433,6 +439,27 @@ public class LendReturnServiceImpl extends ServiceImpl<LendReturnMapper, LendRet
             }
         }
         log.info("还款同步回款明细完成: returnNo={}, 投资人={}人", plan.getReturnNo(), details.size());
+    }
+
+    /**
+     * 整笔借款是否已全部结清：该 lend 下不存在未还的还款计划 → 标的状态更新为已还清(5)。
+     * 在每期还款入账后调用（还款回调 / 定时代扣共用）。
+     */
+    private void markLendFinishedIfFullyRepaid(Long lendId) {
+        if (lendId == null) {
+            return;
+        }
+        long unpaid = this.count(new LambdaQueryWrapper<LendReturn>()
+                .eq(LendReturn::getLendId, lendId)
+                .eq(LendReturn::getStatus, STATUS_UNPAID)
+                .apply("is_deleted = 0"));
+        if (unpaid == 0) {
+            Lend update = new Lend();
+            update.setId(lendId);
+            update.setStatus(LEND_STATUS_FINISHED);
+            lendService.updateById(update);
+            log.info("借款全部结清，标的更新为已还清: lendId={}", lendId);
+        }
     }
 
     /**

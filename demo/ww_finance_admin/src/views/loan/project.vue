@@ -186,6 +186,7 @@ const statusMap: Record<number, { text: string; type: string }> = {
   2: { text: '满标', type: 'success' },
   3: { text: '还款中', type: 'primary' },
   4: { text: '已下架', type: 'info' },
+  5: { text: '已还清', type: 'success' },
 }
 const riskMap: Record<number, { text: string; type: string }> = {
   1: { text: '低风险', type: 'success' },
@@ -226,6 +227,7 @@ onMounted(fetchList)
             <el-option label="满标" :value="2" />
             <el-option label="还款中" :value="3" />
             <el-option label="已下架" :value="4" />
+            <el-option label="已还清" :value="5" />
           </el-select>
         </el-form-item>
         <el-form-item>

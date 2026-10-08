@@ -149,7 +149,7 @@ public class Lend implements Serializable {
     private BigDecimal realAmount;
 
     /**
-     * 状态（0-待发布 1-募集中 2-满标 3-已放款）
+     * 状态（0-待发布 1-募集中 2-满标 3-已放款 4-已下架 5-已还清）
      */
     @TableField("status")
     private Integer status;

@@ -25,6 +25,7 @@ const lendStatusMap: Record<number, string> = {
   2: '满标',
   3: '还款中',
   4: '已下架',
+  5: '已还清',
 }
 
 function fmt(v: number | null | undefined) {

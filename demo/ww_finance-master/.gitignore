@@ -15,3 +15,6 @@ dump.rdb
 # 临时联调文件
 提现测试.html
 chat-pdf.properties
+
+# 日志目录（logback-spring.xml 输出）
+logs/

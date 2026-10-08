@@ -60,6 +60,8 @@ public class LendServiceImpl extends ServiceImpl<LendMapper, Lend> implements Le
     public List<Lend> getLendList() {
         return this.list(new LambdaQueryWrapper<Lend>()
                 .eq(Lend::getDeleted, false)
+                .ne(Lend::getStatus, 4)        // 已下架不展示
+                .ne(Lend::getStatus, 5)        // 已还清不展示
                 .orderByDesc(Lend::getId));
     }
 
@@ -127,6 +129,8 @@ public class LendServiceImpl extends ServiceImpl<LendMapper, Lend> implements Le
         return this.list(new LambdaQueryWrapper<Lend>()
                 .eq(Lend::getDeleted, false)
                 .ne(Lend::getStatus, 2)        // 未满标的才推荐
+                .ne(Lend::getStatus, 4)        // 已下架不推荐
+                .ne(Lend::getStatus, 5)        // 已还清不推荐
                 .orderByDesc(Lend::getInvestNum)
                 .last("limit " + topN));
     }

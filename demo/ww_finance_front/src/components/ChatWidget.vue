@@ -48,7 +48,7 @@ async function scrollToBottom() {
   }
 }
 
-async function saveChatRecord(userMsg: string, aiMsg: string) {
+async function saveChatRecord(userMsg: string, aiMsg: string, kbName = '金融风控知识库') {
   try {
     const firstQuestion = sessionId === 0 ? userMsg : messages.value[1]?.content || ''
     await fetch('http://localhost:8990/api/core/chat/save', {
@@ -56,7 +56,7 @@ async function saveChatRecord(userMsg: string, aiMsg: string) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sessionId, userName: userName.value, userPhone: userPhone.value,
-        title: firstQuestion, kbName: '默认知识库', model: currentModelName.value,
+        title: firstQuestion, kbName: kbName, model: currentModelName.value,
         message: { role: 'user', content: userMsg },
       }),
     }).then(res => res.json()).then((res: any) => {
@@ -91,6 +91,9 @@ async function sendMessage() {
     const response = await fetch(
       `http://localhost:8089/ai/knowledge-chat?prompt=${encodeURIComponent(text)}&chatId=${encodeURIComponent(chatId.value)}`
     )
+    // 命中的知识文档名（后端 URL 编码后放在 X-KB-Docs 响应头，这里解码，用于咨询记录展示）
+    const kbDocsRaw = response.headers.get('X-KB-Docs') || ''
+    const kbDocs = kbDocsRaw ? decodeURIComponent(kbDocsRaw) : '金融风控知识库'
     const reader = response.body?.getReader()
     if (!reader) throw new Error('无法读取响应')
     const decoder = new TextDecoder()
@@ -103,7 +106,7 @@ async function sendMessage() {
       scrollToBottom()
     }
     if (!aiContent) messages.value[aiIndex].content = '抱歉，我暂时无法回答这个问题。'
-    await saveChatRecord(text, aiContent)
+    await saveChatRecord(text, aiContent, kbDocs)
   } catch (e) {
     console.error('调用智能客服失败:', e)
     messages.value[aiIndex].content = '网络异常，请稍后再试。'

@@ -17,6 +17,7 @@ const statusMap: Record<number, { text: string; type: 'primary' | 'success' | 'w
   2: { text: '满标', type: 'success' },
   3: { text: '还款中', type: 'warning' },
   4: { text: '已下架', type: 'info' },
+  5: { text: '已还清', type: 'success' },
   0: { text: '待发布', type: 'info' },
 }
 

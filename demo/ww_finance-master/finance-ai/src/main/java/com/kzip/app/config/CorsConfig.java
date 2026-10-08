@@ -26,7 +26,8 @@ public class CorsConfig implements WebMvcConfigurer {
                         "Content-Disposition",
                         "Content-Length",
                         "Content-Type",
-                        "X-Filename"
+                        "X-Filename",
+                        "X-KB-Docs"
                 )
                 .allowCredentials(false)                  // 带 Cookie 时必须 true，并把 originPatterns 改为具体域名
                 .maxAge(3600);                            // 预检 OPTIONS 结果缓存 1 小时，减少预检请求
