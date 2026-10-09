@@ -121,8 +121,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (!checkMobile(userDTO.getMobile())) {
             throw new BusinessException("手机号已被注册");
         }
-        // 3. 判断两次密码是否一致
-        if (!userDTO.getPassword().equals(userDTO.getPasswordto())) {
+        // 3. 校验密码强度：8-16位，必须同时包含大写字母、小写字母、数字、特殊字符
+        String password = userDTO.getPassword();
+        if (password == null || !password.matches("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^\\w\\s]).{8,16}$")) {
+            throw new BusinessException("密码需 8-16 位，且同时包含大写字母、小写字母、数字和特殊字符");
+        }
+        // 3.5 判断两次密码是否一致
+        if (!password.equals(userDTO.getPasswordto())) {
             throw new BusinessException("两次输入的密码不正确");
         }
         // 4. 保存用户（密码 MD5 加密）

@@ -97,28 +97,33 @@ public class MyAiController {
      * 模型由管理端 chat_model_config 表的默认配置决定
      */
     @RequestMapping(value = "/knowledge-chat", produces = "text/html;charset=UTF-8")
-    public ResponseEntity<Flux<String>> knowledgeChat(String prompt, String chatId) {
+    public ResponseEntity<Flux<String>> knowledgeChat(String prompt, String chatId,
+                                                      @RequestParam(required = false) String userName) {
         try {
-            String systemPrompt = "你是旺旺金融的智能客服小旺，服务态度友好热情，回答简洁专业。\n"
-                    + "你的工作原则：\n"
-                    + "1. 业务相关问题请严格根据知识库内容回答，不要编造业务信息。\n"
-                    + "2. 知识库没有的业务问题，礼貌告知并引导联系人工客服。\n"
-                    + "3. 问候、闲聊等简单对话正常友好回答。\n"
-                    + "4. 用户询问'你能做什么/你是谁'时，介绍自己是旺旺金融智能客服小旺，可解答借款申请、投资理财、充值提现、还款计划、账户绑定等业务问题。\n"
-                    + "5. 对话中'我/用户'指客户，'你'指小旺自己，根据上下文准确理解。\n"
-                    + "6. 记住之前的对话内容，保持上下文连贯。";
+            // 从管理端获取当前生效的客服配置（系统提示词 + 采样参数，未配置用内置兜底）
+            java.util.Map<String, Object> promptConfig = getPromptConfig();
+            String systemPrompt = promptConfig.get("systemPrompt").toString();
+            org.springframework.ai.chat.prompt.ChatOptions chatOptions = buildChatOptions(promptConfig);
+
+            // 当前对话用户身份（前端传入登录用户名，未登录/未传时为"客户"）
+            if (userName == null || userName.trim().isEmpty()) {
+                userName = "客户";
+            }
+            systemPrompt = systemPrompt + "\n当前对话用户是：" + userName
+                    + "。当用户询问\"我是谁/我叫什么/我的名字/我的身份\"等身份问题时，直接告知\"您是" + userName + "\"，不要检索知识库。";
 
             // 从管理端获取当前默认模型
             String defaultModel = getDefaultModel();
             ChatClient selectedClient = defaultModel != null && defaultModel.toLowerCase().contains("deepseek")
                     ? ragChatClient : chatClient;
 
-            // 0. 闲聊/问候/能力询问：直接模型友好回答，不强制走知识库
-            if (isSmallTalk(prompt)) {
-                log.info("闲聊问题，直接模型回答: chatId={}, prompt={}", chatId, prompt);
+            // 0. 闲聊/问候/能力询问/身份询问：直接模型友好回答，不强制走知识库
+            if (isSmallTalk(prompt) || isIdentityQuestion(prompt)) {
+                log.info("闲聊/身份问题，直接模型回答: chatId={}, prompt={}", chatId, prompt);
                 var talk = selectedClient
                         .prompt()
                         .system(systemPrompt)
+                        .options(chatOptions)
                         .user(prompt);
                 if (chatId != null && !chatId.isEmpty()) {
                     talk = talk.advisors(a -> a.param(CONVERSATION_ID, chatId));
@@ -154,6 +159,7 @@ public class MyAiController {
             var request = selectedClient
                     .prompt()
                     .system(systemPrompt)
+                    .options(chatOptions)
                     .user(prompt)
                     // 2. 统一挂知识库检索 advisor：无论千问还是 DeepSeek 都基于检索片段回答
                     .advisors(QuestionAnswerAdvisor.builder(vectorStore)
@@ -190,6 +196,21 @@ public class MyAiController {
     private volatile long cacheTime = 0;
     private static final long CACHE_TTL = 30_000; // 30秒
 
+    // 缓存生效客服 Prompt 配置（含 systemPrompt/temperature/topP/maxTokens），30秒刷新一次
+    private volatile java.util.Map<String, Object> cachedPromptConfig = null;
+    private volatile long cachedPromptTime = 0;
+
+    /** 内置兜底客服指令：管理端未配置 Prompt 时使用 */
+    private static final String FALLBACK_SYSTEM_PROMPT =
+            "你是旺旺金融的智能客服小旺，服务态度友好热情，回答简洁专业。\n"
+            + "你的工作原则：\n"
+            + "1. 业务相关问题请严格根据知识库内容回答，不要编造业务信息。\n"
+            + "2. 知识库没有的业务问题，礼貌告知并引导联系人工客服。\n"
+            + "3. 问候、闲聊等简单对话正常友好回答。\n"
+            + "4. 用户询问'你能做什么/你是谁'时，介绍自己是旺旺金融智能客服小旺，可解答借款申请、投资理财、充值提现、还款计划、账户绑定等业务问题。\n"
+            + "5. 对话中'我/用户'指客户，'你'指小旺自己，根据上下文准确理解。\n"
+            + "6. 记住之前的对话内容，保持上下文连贯。";
+
     private String getDefaultModel() {
         long now = System.currentTimeMillis();
         if (cachedModel != null && now - cacheTime < CACHE_TTL) {
@@ -211,6 +232,68 @@ public class MyAiController {
     }
 
     /**
+     * 获取当前生效的客服配置（管理端 chat_prompt_config，30秒缓存）
+     * 返回 Map：systemPrompt/temperature/topP/maxTokens；
+     * 管理端未配置或调用失败时，systemPrompt 回退内置兜底，参数为 null（不覆盖模型默认）
+     */
+    private java.util.Map<String, Object> getPromptConfig() {
+        long now = System.currentTimeMillis();
+        if (cachedPromptConfig != null && now - cachedPromptTime < CACHE_TTL) {
+            return cachedPromptConfig;
+        }
+        java.util.Map<String, Object> config = new java.util.HashMap<>();
+        try {
+            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            java.util.Map<?, ?> resp = restTemplate.getForObject(
+                    "http://localhost:8990/api/core/chat/active-prompt", java.util.Map.class);
+            if (resp != null && resp.get("data") instanceof java.util.Map) {
+                @SuppressWarnings("unchecked")
+                java.util.Map<String, Object> data = (java.util.Map<String, Object>) resp.get("data");
+                config.put("systemPrompt", data.get("systemPrompt"));
+                config.put("temperature", data.get("temperature"));
+                config.put("topP", data.get("topP"));
+                config.put("maxTokens", data.get("maxTokens"));
+                cachedPromptConfig = config;
+                cachedPromptTime = now;
+            }
+        } catch (Exception e) {
+            // 调用失败沿用上次缓存
+        }
+        if (config.get("systemPrompt") == null || config.get("systemPrompt").toString().isEmpty()) {
+            config.put("systemPrompt", FALLBACK_SYSTEM_PROMPT);
+        }
+        if (cachedPromptConfig == null) {
+            cachedPromptConfig = config;
+        }
+        return cachedPromptConfig;
+    }
+
+    /**
+     * 按当前默认模型构造请求级采样参数（temperature/topP/maxTokens）
+     * DeepSeek 用 DeepSeekChatOptions，DashScope 用 DashScopeChatOptions；
+     * 管理端参数为 null 时不覆盖（沿用模型默认）
+     */
+    private org.springframework.ai.chat.prompt.ChatOptions buildChatOptions(java.util.Map<String, Object> cfg) {
+        Double temperature = cfg.get("temperature") == null ? null : Double.valueOf(cfg.get("temperature").toString());
+        Double topP = cfg.get("topP") == null ? null : Double.valueOf(cfg.get("topP").toString());
+        Integer maxTokens = cfg.get("maxTokens") == null ? null : Integer.valueOf(cfg.get("maxTokens").toString());
+
+        String model = getDefaultModel();
+        if (model != null && model.toLowerCase().contains("deepseek")) {
+            var b = org.springframework.ai.deepseek.DeepSeekChatOptions.builder();
+            if (temperature != null) b.temperature(temperature);
+            if (topP != null) b.topP(topP);
+            if (maxTokens != null) b.maxTokens(maxTokens);
+            return b.build();
+        }
+        var b = com.alibaba.cloud.ai.dashscope.chat.DashScopeChatOptions.builder();
+        if (temperature != null) b.withTemperature(temperature);
+        if (topP != null) b.withTopP(topP);
+        if (maxTokens != null) b.withMaxToken(maxTokens);
+        return b.build();
+    }
+
+    /**
      * 闲聊/问候/能力询问识别：这类问题不强制走知识库，直接由模型友好回答。
      * 命中返回 true；业务问题返回 false，继续走知识库检索。
      */
@@ -223,6 +306,27 @@ public class MyAiController {
                 "你好", "您好", "在吗", "在不在", "嗨", "哈喽", "hello", "hi",
                 "你是谁", "你叫什么", "你能做什么", "你会什么", "你能干嘛", "介绍一下你",
                 "谢谢", "感谢", "再见", "拜拜", "辛苦了", "好的", "嗯嗯", "在的"
+        };
+        for (String w : words) {
+            if (p.contains(w)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 身份类问题识别：用户问"我是谁/我叫什么"等，命中返回 true。
+     * 这类问题不需要检索知识库，由模型结合"当前对话用户"直接回答。
+     */
+    private boolean isIdentityQuestion(String prompt) {
+        if (prompt == null || prompt.trim().isEmpty()) {
+            return false;
+        }
+        String p = prompt.trim();
+        String[] words = {
+                "我是谁", "我叫什么", "我的名字", "我的身份", "我是什么身份",
+                "我是哪个用户", "我是哪位", "你知道我是谁", "我是什么用户"
         };
         for (String w : words) {
             if (p.contains(w)) {

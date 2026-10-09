@@ -55,7 +55,7 @@ public class UserAccountServiceimpl extends ServiceImpl<UserAccountMapper, UserA
         if (userBind == null || StringUtils.isEmpty(userBind.getBindCode())) {
             throw new RuntimeException("用户未绑定托管账户，请先完成实名绑定");
         }
-        // 金额校验：必须为正数，且单次不超过 1000 万
+        // 金额校验：必须为正数，且单次不超过 99999999（模拟银行云端库 decimal(10,2) 上限 99999999.99）
         BigDecimal amt;
         try {
             amt = new BigDecimal(chargeAmt);
@@ -65,8 +65,17 @@ public class UserAccountServiceimpl extends ServiceImpl<UserAccountMapper, UserA
         if (amt.compareTo(BigDecimal.ZERO) <= 0) {
             throw new RuntimeException("充值金额必须大于0");
         }
-        if (amt.compareTo(new BigDecimal("10000000")) > 0) {
-            throw new RuntimeException("单次充值金额不能超过1000万元");
+        if (amt.compareTo(new BigDecimal("99999999")) > 0) {
+            throw new RuntimeException("单次充值金额不能超过99999999元");
+        }
+        // 余额叠加校验：充值后账户余额不得超过托管银行上限 99999999.99
+        BigDecimal curAmount = BigDecimal.ZERO;
+        UserAccount cur = this.getOne(new LambdaQueryWrapper<UserAccount>().eq(UserAccount::getUserId, userId));
+        if (cur != null && cur.getAmount() != null) {
+            curAmount = cur.getAmount();
+        }
+        if (curAmount.add(amt).compareTo(new BigDecimal("99999999.99")) > 0) {
+            throw new RuntimeException("账户余额已达托管银行上限，无法继续充值（当前余额 " + curAmount + " 元）");
         }
         // 生成商户订单号
         String agentBillNo = LendNoUtils.getChargeNo();

@@ -2,9 +2,11 @@ package com.wwfinance.api.controller.user;
 
 import com.wwfinance.api.entity.ChatMessage;
 import com.wwfinance.api.entity.ChatModelConfig;
+import com.wwfinance.api.entity.ChatPromptConfig;
 import com.wwfinance.api.entity.ChatSession;
 import com.wwfinance.api.mapper.ChatMessageMapper;
 import com.wwfinance.api.mapper.ChatModelConfigMapper;
+import com.wwfinance.api.mapper.ChatPromptConfigMapper;
 import com.wwfinance.api.mapper.ChatSessionMapper;
 import com.wwfinance.common.result.PccAjaxResult;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +28,9 @@ public class UserChatController {
     @Autowired
     private ChatModelConfigMapper chatModelConfigMapper;
 
+    @Autowired
+    private ChatPromptConfigMapper chatPromptConfigMapper;
+
     /**
      * 获取当前默认模型（finance-ai 调用，决定用哪个 ChatClient）
      */
@@ -39,6 +44,30 @@ public class UserChatController {
         );
         String modelName = config != null ? config.getModelName() : "qwen-plus";
         return new PccAjaxResult(200, "获取成功", modelName);
+    }
+
+    /**
+     * 获取当前生效的客服系统提示词（finance-ai 调用）
+     * 返回完整配置：systemPrompt + temperature + topP + maxTokens；
+     * 未配置时返回 null，由 finance-ai 用内置兜底
+     */
+    @GetMapping("/active-prompt")
+    public PccAjaxResult getActivePrompt() {
+        ChatPromptConfig config = chatPromptConfigMapper.selectOne(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ChatPromptConfig>()
+                        .eq(ChatPromptConfig::getStatus, 1)
+                        .eq(ChatPromptConfig::getIsDefault, 1)
+                        .last("LIMIT 1")
+        );
+        if (config == null) {
+            return new PccAjaxResult(200, "获取成功", null);
+        }
+        java.util.Map<String, Object> data = new java.util.HashMap<>();
+        data.put("systemPrompt", config.getSystemPrompt());
+        data.put("temperature", config.getTemperature());
+        data.put("topP", config.getTopP());
+        data.put("maxTokens", config.getMaxTokens());
+        return new PccAjaxResult(200, "获取成功", data);
     }
 
     /**

@@ -55,6 +55,7 @@ public class MyWebConfig  implements WebMvcConfigurer {
                         "/admin/core/knowledge/doc/updateStatus",  // AI 服务回调更新文档状态（无需登录）
                         "/api/core/chat/save",                   // 用户端保存聊天记录（无需登录）
                         "/api/core/chat/default-model",           // 获取当前默认模型（无需登录）
+                        "/api/core/chat/active-prompt",           // 获取当前生效的客服系统提示词（无需登录）
                         "/doc.html",
                         "/webjars/**",
                         "/swagger-resources/**",

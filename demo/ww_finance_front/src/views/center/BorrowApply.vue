@@ -55,8 +55,9 @@ function onAmountInput() {
     v = v.slice(0, idx + 1) + v.slice(idx + 1).replace(/\./g, '')
   }
   const hasDot = v.includes('.')
-  const intPart = v.split('.')[0].slice(0, 8)
-  const decPart = hasDot ? v.split('.')[1].slice(0, 2) : ''
+  // 高额+高精度：整数最多 14 位（可输万亿级），小数最多 8 位（与数据库 DECIMAL(20,8) 一致）
+  const intPart = v.split('.')[0].slice(0, 14)
+  const decPart = hasDot ? v.split('.')[1].slice(0, 8) : ''
   v = hasDot ? intPart + '.' + decPart : intPart
   amountText.value = v
   form.amount = v ? parseFloat(v) : 0
@@ -140,7 +141,7 @@ async function handleSubmit() {
     return
   }
   if (form.amount > amount.value) {
-    ElMessage.warning(`借款金额超过可借额度 ${amount.value} 元`)
+    ElMessage.warning(`借款金额超过可借额度 ${Number(amount.value).toLocaleString()} 元`)
     return
   }
   if (form.borrowYearRate < minRate.value) {
@@ -154,7 +155,8 @@ async function handleSubmit() {
   submitting.value = true
   try {
     await saveBorrowInfo({
-      amount: form.amount,
+      // 用字符串传金额：保留完整精度（如 1028475292.8472642183），避免 JS Number 丢精度
+      amount: amountText.value,
       period: form.period,
       borrowYearRate: form.borrowYearRate,
       returnMethod: form.returnMethod,
@@ -226,7 +228,7 @@ onMounted(load)
           <div class="amount-row">
             <el-input
               v-model="amountText"
-              :maxlength="11"
+              :maxlength="23"
               inputmode="decimal"
               placeholder="请输入金额"
               :disabled="amount <= 0"

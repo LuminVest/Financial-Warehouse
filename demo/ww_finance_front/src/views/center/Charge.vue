@@ -63,7 +63,7 @@ const agreementText = `旺旺信贷投资咨询与管理服务电子协议
 9.1 本协议自甲方勾选同意并注册成功之日起生效。
 9.2 本协议以电子形式签署，与纸质协议具有同等法律效力。`
 
-// 金额输入实时清洗：只留数字和小数点，整数最多 8 位、小数 2 位，且单次不超过 1000 万
+// 金额输入实时清洗：只留数字和小数点，整数最多 9 位、小数 2 位，且单次不超过 99999999（模拟银行云端库 decimal(10,2) 上限 99999999.99）
 function onAmountInput() {
   let v = amount.value.replace(/[^\d.]/g, '')
   const idx = v.indexOf('.')
@@ -71,10 +71,10 @@ function onAmountInput() {
     v = v.slice(0, idx + 1) + v.slice(idx + 1).replace(/\./g, '')
   }
   const hasDot = v.includes('.')
-  let intPart = v.split('.')[0].slice(0, 8)
+  let intPart = v.split('.')[0].slice(0, 9)
   const decPart = hasDot ? v.split('.')[1].slice(0, 2) : ''
-  if (intPart && parseInt(intPart, 10) > 10000000) {
-    intPart = '10000000'
+  if (intPart && parseInt(intPart, 10) > 99999999) {
+    intPart = '99999999'
   }
   amount.value = hasDot ? intPart + '.' + decPart : intPart
 }
@@ -104,8 +104,8 @@ async function handleCharge() {
     ElMessage.warning('请输入充值金额')
     return
   }
-  if (amt > 10000000) {
-    ElMessage.warning('单次充值金额不能超过 1000 万元')
+  if (amt > 99999999) {
+    ElMessage.warning('单次充值金额不能超过 99,999,999 元')
     return
   }
   if (!chargeAgreed.value) {
@@ -135,7 +135,7 @@ async function handleCharge() {
         <span class="label">充值金额</span>
         <el-input
           v-model="amount"
-          :maxlength="11"
+          :maxlength="12"
           inputmode="decimal"
           placeholder="请输入充值金额"
           style="width: 200px"
@@ -143,7 +143,7 @@ async function handleCharge() {
         />
         <span class="unit">元</span>
       </div>
-      <div class="limit-tip">单次最高充值 1000 万元</div>
+      <div class="limit-tip">单次最高充值 99,999,999 元（托管银行单笔限额）</div>
       <div class="agree-row">
         <el-checkbox v-model="chargeAgreed">
           我已阅读并同意

@@ -3,7 +3,7 @@ import request from '@/utils/request'
 // 借款申请 API
 
 export interface BorrowInfoDto {
-  amount: number // 借款金额
+  amount: string // 借款金额（字符串传完整精度，如 "1028475292.8472642183"）
   period: number // 期限（月）
   borrowYearRate: number // 年化利率（小数，如 0.08）
   returnMethod: number // 还款方式 1等额本息 2等额本金 3按月付息到期还本

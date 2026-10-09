@@ -26,8 +26,9 @@ async function handleSendCode() {
   }
   sendLoading.value = true
   try {
-    const code = await sendCode(form.mobile)
-    ElMessage.success(`验证码已发送，测试环境验证码：${code}`)
+    await sendCode(form.mobile)
+    // 真实场景：验证码通过短信下发到手机，页面上只提示已发送（测试时从后端日志查看验证码）
+    ElMessage.success('验证码已发送，请注意查收')
     countdown.value = 60
     const timer = setInterval(() => {
       countdown.value--
@@ -38,13 +39,17 @@ async function handleSendCode() {
   }
 }
 
+// 严格密码规则：8-16位，必须同时包含大写字母、小写字母、数字、特殊字符
+const pwdReg = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,16}$/
+const PWD_TIP = '密码需 8-16 位，且同时包含大写字母、小写字母、数字和特殊字符'
+
 async function handleRegister() {
   if (!/^1\d{10}$/.test(form.mobile)) {
     ElMessage.warning('请输入正确的手机号')
     return
   }
-  if (form.password.length < 6) {
-    ElMessage.warning('密码至少 6 位')
+  if (!pwdReg.test(form.password)) {
+    ElMessage.warning(PWD_TIP)
     return
   }
   if (form.password !== form.passwordto) {
@@ -114,7 +119,7 @@ async function handleRegister() {
           <el-input
             v-model="form.password"
             type="password"
-            placeholder="密码（至少6位）"
+            placeholder="密码（8-16位，含大小写字母、数字、特殊字符）"
             :prefix-icon="Lock"
             show-password
           />

@@ -89,7 +89,7 @@ async function sendMessage() {
 
   try {
     const response = await fetch(
-      `http://localhost:8089/ai/knowledge-chat?prompt=${encodeURIComponent(text)}&chatId=${encodeURIComponent(chatId.value)}`
+      `http://localhost:8089/ai/knowledge-chat?prompt=${encodeURIComponent(text)}&chatId=${encodeURIComponent(chatId.value)}&userName=${encodeURIComponent(userName.value)}`
     )
     // 命中的知识文档名（后端 URL 编码后放在 X-KB-Docs 响应头，这里解码，用于咨询记录展示）
     const kbDocsRaw = response.headers.get('X-KB-Docs') || ''
