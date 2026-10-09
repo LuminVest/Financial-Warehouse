@@ -1,5 +1,5 @@
 server:
-  port: 80 # 服务端口
+  port: 8000 # 服务端口（统一入口网关；服务器上由 Nginx 80 反向代理到此端口）
 
 spring:
   profiles:

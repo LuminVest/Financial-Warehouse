@@ -17,6 +17,8 @@ import com.wwfinance.api.mapper.UserMapper;
 import com.wwfinance.api.service.UserAccountService;
 import com.wwfinance.api.service.UserService;
 import com.wwfinance.api.utils.TokenUtil;
+import com.wwfinance.api.client.SmsFeignClient;
+import com.wwfinance.common.result.PccAjaxResult;
 import com.wwfinance.common.utils.MD5;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +53,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Autowired
     private UserLoginRecordMapper userLoginRecordMapper;
+
+    @Autowired
+    private SmsFeignClient smsFeignClient;
 
     @Override
     public User getUserById(Long id) {
@@ -102,11 +107,25 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (!checkMobile(mobile)) {
             throw new BusinessException("手机号已被注册");
         }
-        // 3. 生成 4 位随机验证码并存入 Redis，有效期 5 分钟
+        // 3. 优先通过 OpenFeign 调用短信服务（service-sms）下发验证码
+        try {
+            PccAjaxResult result = smsFeignClient.sendSMS(mobile);
+            if (result != null && result.get("code") != null
+                    && Integer.valueOf(result.get("code").toString()) == 200
+                    && result.get("data") != null) {
+                // demo 联调：短信服务返回验证码（生产环境短信下发后 data 应为空，此处走本地逻辑）
+                String code = result.get("data").toString();
+                log.info("注册验证码由短信服务下发成功：mobile={}", mobile);
+                return code;
+            }
+            log.warn("短信服务返回异常，降级本地生成验证码：mobile={}, result={}", mobile, result);
+        } catch (Exception e) {
+            log.warn("调用短信服务失败，降级本地生成验证码：mobile={}, err={}", mobile, e.getMessage());
+        }
+        // 4. 降级兜底：本地生成 4 位验证码存入 Redis（与短信服务使用同一 Redis、同一 key，注册校验不受影响）
         String code = String.valueOf(new Random().nextInt(9000) + 1000);
         redisTemplate.opsForValue().set(SMS_CODE_PREFIX + mobile, code, SMS_CODE_EXPIRE_MINUTES, TimeUnit.MINUTES);
-        log.info("注册验证码已生成：mobile={}, code={}", mobile, code);
-        // demo 阶段：直接返回验证码方便前后端联调；生产环境应通过短信网关下发，禁止返回
+        log.info("本地降级生成注册验证码：mobile={}, code={}", mobile, code);
         return code;
     }
 

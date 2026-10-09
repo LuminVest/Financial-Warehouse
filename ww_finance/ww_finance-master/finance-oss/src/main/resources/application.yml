@@ -1,20 +1,18 @@
 server:
   port: 8130 # 服务端口
-#
-#spring:
-#  profiles:
-#    active: dev # 环境设置
-#  application:
-#    name: service-oss # 服务名
-#
-#  cloud:
-#    nacos:
-#      discovery:
-#        server-addr: 192.168.65.137:8848 # nacos服务地址
-#        ip: 192.168.65.29
-#
+
 spring:
+  application:
+    name: service-oss # 服务名（网关路由 /oss/** 依赖此注册名）
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848 # nacos服务地址（服务器部署改为服务器IP）
   servlet:
     multipart:
       max-file-size: 50MB
       max-request-size: 50MB
+
+# 文件上传存储目录（服务器部署改为 /www/uploads/）
+oss:
+  upload-dir: D:/uploads/

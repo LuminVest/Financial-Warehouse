@@ -176,6 +176,14 @@
                 <configuration>
                     <classifier>exec</classifier>
                 </configuration>
+                <!-- 显式绑定 repackage 才能产出可执行 jar -->
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

@@ -51,7 +51,7 @@ async function scrollToBottom() {
 async function saveChatRecord(userMsg: string, aiMsg: string, kbName = '金融风控知识库') {
   try {
     const firstQuestion = sessionId === 0 ? userMsg : messages.value[1]?.content || ''
-    await fetch('http://localhost:8990/api/core/chat/save', {
+    await fetch('/api/core/chat/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -62,7 +62,7 @@ async function saveChatRecord(userMsg: string, aiMsg: string, kbName = '金融�
     }).then(res => res.json()).then((res: any) => {
       if (res.code === 200 && res.data) sessionId = res.data
     })
-    await fetch('http://localhost:8990/api/core/chat/save', {
+    await fetch('/api/core/chat/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -89,7 +89,7 @@ async function sendMessage() {
 
   try {
     const response = await fetch(
-      `http://localhost:8089/ai/knowledge-chat?prompt=${encodeURIComponent(text)}&chatId=${encodeURIComponent(chatId.value)}&userName=${encodeURIComponent(userName.value)}`
+      `/ai/knowledge-chat?prompt=${encodeURIComponent(text)}&chatId=${encodeURIComponent(chatId.value)}&userName=${encodeURIComponent(userName.value)}`
     )
     // 命中的知识文档名（后端 URL 编码后放在 X-KB-Docs 响应头，这里解码，用于咨询记录展示）
     const kbDocsRaw = response.headers.get('X-KB-Docs') || ''
@@ -121,7 +121,7 @@ function toggle() {
   if (open.value) {
     scrollToBottom()
     // 每次打开时刷新当前模型
-    fetch('http://localhost:8990/api/core/chat/default-model')
+    fetch('/api/core/chat/default-model')
       .then(res => res.json())
       .then((res: any) => { if (res.code === 200 && res.data) currentModelName.value = res.data })
       .catch(() => {})
@@ -145,7 +145,7 @@ function renderMarkdown(text: string): string {
 onMounted(() => {
   scrollToBottom()
   // 获取当前默认对话模型名
-  fetch('http://localhost:8990/api/core/chat/default-model')
+  fetch('/api/core/chat/default-model')
     .then(res => res.json())
     .then((res: any) => { if (res.code === 200 && res.data) currentModelName.value = res.data })
     .catch(() => {})

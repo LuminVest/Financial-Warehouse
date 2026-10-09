@@ -53,7 +53,7 @@ async function scrollToBottom() {
 async function saveChatRecord(userMsg: string, aiMsg: string, kbName = '金融风控知识库') {
   try {
     const firstQuestion = sessionId === 0 ? userMsg : messages.value[0]?.content || ''
-    await fetch('http://localhost:8990/api/core/chat/save', {
+    await fetch('/api/core/chat/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -75,7 +75,7 @@ async function saveChatRecord(userMsg: string, aiMsg: string, kbName = '金融�
     })
 
     // 保存 AI 回复
-    await fetch('http://localhost:8990/api/core/chat/save', {
+    await fetch('/api/core/chat/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -119,7 +119,7 @@ async function sendMessage() {
   try {
     // 调用 finance-ai 的 RAG 问答接口，传 chatId 启用对话记忆
     const response = await fetch(
-      `http://localhost:8089/ai/knowledge-chat?prompt=${encodeURIComponent(text)}&chatId=${encodeURIComponent(chatId)}&userName=${encodeURIComponent(userName)}`
+      `/ai/knowledge-chat?prompt=${encodeURIComponent(text)}&chatId=${encodeURIComponent(chatId)}&userName=${encodeURIComponent(userName)}`
     )
     // 命中的知识文档名（后端 URL 编码后放在 X-KB-Docs 响应头，这里解码，用于咨询记录展示）
     const kbDocsRaw = response.headers.get('X-KB-Docs') || ''
@@ -171,7 +171,7 @@ function askQuick(q: string) {
 onMounted(() => {
   scrollToBottom()
   // 获取管理端配置的当前默认模型名（咨询记录展示用）
-  fetch('http://localhost:8990/api/core/chat/default-model')
+  fetch('/api/core/chat/default-model')
     .then(res => res.json())
     .then((res: any) => { if (res.code === 200 && res.data) currentModelName.value = res.data })
     .catch(() => {})

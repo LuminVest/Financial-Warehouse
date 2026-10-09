@@ -31,9 +31,14 @@ export default defineConfig({
     port: 5174,
     open: true,
     proxy: {
-      // 用户端 API：/api/** → 后端 8990
+      // 用户端 API：/api/** → 后端 8990（生产环境由 Nginx 反向代理到网关 8000）
       '/api': {
         target: 'http://localhost:8990',
+        changeOrigin: true,
+      },
+      // 智能客服：/ai/** → finance-ai 8089（网关未注册该服务，Nginx/代理直连）
+      '/ai': {
+        target: 'http://localhost:8089',
         changeOrigin: true,
       },
       // OSS 文件服务：/oss/** → 8130

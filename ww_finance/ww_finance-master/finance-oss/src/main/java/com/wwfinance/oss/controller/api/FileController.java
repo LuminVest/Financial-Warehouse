@@ -6,6 +6,7 @@ import com.wwfinance.oss.service.FileService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.util.StringUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -25,7 +26,9 @@ public class FileController {
     @Resource
     private FileService fileService;
 
-    private static String UPLOADED_FOLDER = "D:/uploads/";
+    /** 上传存储目录：默认 D:/uploads/，服务器部署可通过配置 oss.upload-dir 覆盖（如 /www/uploads/） */
+    @Value("${oss.upload-dir:D:/uploads/}")
+    private String uploadFolder;
 
     @GetMapping("/hello")
     public String hello() {
@@ -47,7 +50,7 @@ public class FileController {
             }
             // 将文件拷贝到指定目标文件夹
             byte[] bytes = file.getBytes();
-            Path path = Paths.get(UPLOADED_FOLDER + fileName);
+            Path path = Paths.get(uploadFolder + fileName);
             Files.write(path, bytes);
             return new PccAjaxResult(200, "文件上传成功", path);
         } catch (IOException e) {
